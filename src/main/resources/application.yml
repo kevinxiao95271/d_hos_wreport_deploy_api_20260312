@@ -1,0 +1,98 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: hos-wreport-api
+
+  # ============================================================
+  # PostgreSQL 数据源
+  # ============================================================
+  datasource:
+    url: jdbc:postgresql://119.167.165.27:5432/zjylzl?currentSchema=zjylzl
+    username: postgres
+    password: zjylzl
+    driver-class-name: org.postgresql.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid:
+      initial-size: 3
+      min-idle: 3
+      max-active: 20
+      max-wait: 60000
+      validation-query: SELECT 1
+      test-while-idle: true
+
+  # ============================================================
+  # Redis（可选，当前仅声明，不强依赖）
+  # ============================================================
+  redis:
+    host: 81.71.44.180
+    port: 6379
+    database: 1
+    timeout: 5000
+
+  # ============================================================
+  # 文件上传限制
+  # ============================================================
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+  # ============================================================
+  # Jackson
+  # ============================================================
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+
+# ============================================================
+# MyBatis-Plus
+# ============================================================
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: del_flag
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  mapper-locations: classpath*:com/kxhospital/wreport/mapper/xml/*.xml
+
+# ============================================================
+# 自定义配置
+# ============================================================
+wr:
+  jwt:
+    secret: zjylzlHosWreportJwtSecret2025!@#$
+    expire-minutes: 480
+
+  minio:
+    endpoint: http://119.167.165.27:58010
+    access-key: minioadmin
+    secret-key: Ygcx2025
+    bucket-evidence: wk-registration-files
+    bucket-template: wk-system-templates
+    presigned-expire: 604800
+
+# ============================================================
+# Springdoc / Swagger UI
+# ============================================================
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+  components:
+    security-schemes:
+      BearerAuth:
+        type: http
+        scheme: bearer
+        bearerFormat: JWT
+
+logging:
+  level:
+    com.kxhospital.wreport: DEBUG
+    root: INFO
