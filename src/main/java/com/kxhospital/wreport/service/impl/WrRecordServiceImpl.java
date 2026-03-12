@@ -14,6 +14,7 @@ import com.kxhospital.wreport.pojo.response.RecordAggregateResponse;
 import com.kxhospital.wreport.pojo.response.RecordDetailVO;
 import com.kxhospital.wreport.service.WrAttachmentService;
 import com.kxhospital.wreport.service.WrRecordService;
+import com.kxhospital.wreport.service.WrTemplateService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -37,6 +38,7 @@ public class WrRecordServiceImpl implements WrRecordService {
     private final WrTemplateItemMapper itemMapper;
     private final WrAttachmentService  attachmentService;
     private final WrAttachmentMapper   attachmentMapper;
+    private final WrTemplateService    templateService;
 
     @Override
     @Transactional
@@ -139,6 +141,8 @@ public class WrRecordServiceImpl implements WrRecordService {
         vo.setValues(values);
         vo.setAttachments(attachments);
         vo.setStatusLabel(statusLabel(record.getStatus()));
+        // 矩阵类模板（checkbox）一并返回行定义，前端无需再单独请求 /wr/template/rows
+        vo.setRows(templateService.listRows(record.getTemplateId()));
         return vo;
     }
 
