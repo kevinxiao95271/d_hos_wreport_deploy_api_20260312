@@ -129,15 +129,15 @@ public class AuthController {
 
     /**
      * 开发环境：重置三个测试账号密码
-     * admin_dept → Admin@2025, org_a_user → OrgA@2025, org_b_user → OrgB@2025
+     * wr_admin → Admin@2025, wr_org_a → OrgA@2025, wr_org_b → OrgB@2025
      */
     @PostMapping("/dev-reset-pwd")
     public R<?> devResetPwd() {
         BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
-        sysUserMapper.updatePassword("admin_dept", enc.encode("Admin@2025"));
-        sysUserMapper.updatePassword("org_a_user", enc.encode("OrgA@2025"));
-        sysUserMapper.updatePassword("org_b_user", enc.encode("OrgB@2025"));
-        return R.ok("密码已重置: admin_dept=Admin@2025 / org_a_user=OrgA@2025 / org_b_user=OrgB@2025");
+        sysUserMapper.updatePassword("wr_admin", enc.encode("Admin@2025"));
+        sysUserMapper.updatePassword("wr_org_a", enc.encode("OrgA@2025"));
+        sysUserMapper.updatePassword("wr_org_b", enc.encode("OrgB@2025"));
+        return R.ok("密码已重置: wr_admin=Admin@2025 / wr_org_a=OrgA@2025 / wr_org_b=OrgB@2025");
     }
 
     @Data

@@ -30,8 +30,10 @@ public interface SysUserMapper {
             "LIMIT 1")
     String findRoleCode(@Param("userId") Long userId);
 
-    /** 根据 org_id 查机构名（先尝试 sys_org，失败则 AuthController 忽略） */
-    @Select("SELECT org_name FROM sys_org WHERE org_id = #{orgId} LIMIT 1")
+    /**
+     * 查机构名：sys_user.org_id -> hr_organization.org_id -> org_name
+     */
+    @Select("SELECT org_name FROM hr_organization WHERE org_id = #{orgId} LIMIT 1")
     String findOrgName(@Param("orgId") Long orgId);
 
     // ---- 调试接口 ----
@@ -46,6 +48,11 @@ public interface SysUserMapper {
     @Update("UPDATE sys_user SET password = #{password} WHERE account = #{account}")
     void updatePassword(@Param("account") String account, @Param("password") String password);
 
-    @Select("SELECT user_id, account, password, status_flag, del_flag FROM sys_user WHERE del_flag='N' ORDER BY create_time DESC LIMIT 20")
+    @Select("SELECT u.user_id, u.account, u.real_name, u.org_id, " +
+            "       ho.org_name, u.status_flag " +
+            "FROM sys_user u " +
+            "LEFT JOIN hr_organization ho ON ho.org_id = u.org_id " +
+            "WHERE u.del_flag = 'N' " +
+            "ORDER BY u.create_time DESC LIMIT 20")
     List<Map<String, Object>> listRecentUsers();
 }
