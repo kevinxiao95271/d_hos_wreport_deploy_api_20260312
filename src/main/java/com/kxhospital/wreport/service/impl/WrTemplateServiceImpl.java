@@ -3,18 +3,23 @@ package com.kxhospital.wreport.service.impl;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.kxhospital.wreport.config.MinioProperties;
 import com.kxhospital.wreport.config.MinioService;
 import com.kxhospital.wreport.entity.WrTemplate;
 import com.kxhospital.wreport.entity.WrTemplateItem;
+import com.kxhospital.wreport.entity.WrTemplateRow;
 import com.kxhospital.wreport.mapper.WrTemplateItemMapper;
 import com.kxhospital.wreport.mapper.WrTemplateMapper;
+import com.kxhospital.wreport.mapper.WrTemplateRowMapper;
+import com.kxhospital.wreport.pojo.response.TemplateDetailVO;
 import com.kxhospital.wreport.service.WrTemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -23,6 +28,7 @@ public class WrTemplateServiceImpl implements WrTemplateService {
 
     private final WrTemplateMapper     templateMapper;
     private final WrTemplateItemMapper itemMapper;
+    private final WrTemplateRowMapper  rowMapper;
     private final MinioService         minioService;
     private final MinioProperties      minioProps;
 
@@ -34,6 +40,15 @@ public class WrTemplateServiceImpl implements WrTemplateService {
     @Override
     public WrTemplate detail(Long id) {
         return templateMapper.selectById(id);
+    }
+
+    @Override
+    public TemplateDetailVO detailFull(Long id) {
+        TemplateDetailVO vo = new TemplateDetailVO();
+        vo.setTemplate(templateMapper.selectById(id));
+        vo.setItems(itemMapper.selectByTemplateId(id));
+        vo.setRows(rowMapper.selectByTemplateId(id));
+        return vo;
     }
 
     @Override
@@ -95,6 +110,26 @@ public class WrTemplateServiceImpl implements WrTemplateService {
     @Override
     public List<WrTemplate> listActive() {
         return templateMapper.selectActiveList();
+    }
+
+    @Override
+    public List<WrTemplateRow> listRows(Long templateId) {
+        return rowMapper.selectByTemplateId(templateId);
+    }
+
+    @Override
+    @Transactional
+    public void replaceRows(Long templateId, List<WrTemplateRow> rows) {
+        rowMapper.deleteByTemplateId(templateId);
+        if (rows == null || rows.isEmpty()) return;
+        int sortNum = 0;
+        for (WrTemplateRow row : rows) {
+            row.setId(null);
+            row.setTemplateId(templateId);
+            row.setDelFlag(0);
+            if (row.getSortNum() == null) row.setSortNum(sortNum++);
+            rowMapper.insert(row);
+        }
     }
 
     @Override

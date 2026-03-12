@@ -7,8 +7,10 @@ import com.kxhospital.wreport.common.R;
 import com.kxhospital.wreport.common.UserContext;
 import com.kxhospital.wreport.entity.WrTemplate;
 import com.kxhospital.wreport.entity.WrTemplateItem;
+import com.kxhospital.wreport.entity.WrTemplateRow;
 import com.kxhospital.wreport.pojo.request.TemplateAddRequest;
 import com.kxhospital.wreport.pojo.request.TemplateItemRequest;
+import com.kxhospital.wreport.pojo.response.TemplateDetailVO;
 import com.kxhospital.wreport.service.WrTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -46,11 +48,17 @@ public class WrTemplateController {
         return R.ok(templateService.page(new Page<>(pageNum, pageSize), templateName, status));
     }
 
-    @Operation(summary = "模板详情")
+    @Operation(summary = "模板详情（基本信息）")
     @GetMapping("/detail/{id}")
     public R<WrTemplate> detail(@PathVariable Long id) {
         requireAdmin();
         return R.ok(templateService.detail(id));
+    }
+
+    @Operation(summary = "模板完整详情（含列定义+行定义）")
+    @GetMapping("/detail/full/{id}")
+    public R<TemplateDetailVO> detailFull(@PathVariable Long id) {
+        return R.ok(templateService.detailFull(id));
     }
 
     @Operation(summary = "获取模板表头列表")
@@ -144,6 +152,21 @@ public class WrTemplateController {
     public R<Void> deleteFormat(@PathVariable Long itemId) {
         requireAdmin();
         templateService.deleteFormatTemplate(itemId);
+        return R.ok();
+    }
+
+    @Operation(summary = "查询模板行定义（矩阵类模板专用）")
+    @GetMapping("/rows/{templateId}")
+    public R<List<WrTemplateRow>> rows(@PathVariable Long templateId) {
+        return R.ok(templateService.listRows(templateId));
+    }
+
+    @Operation(summary = "覆盖保存模板行定义（全量替换）")
+    @PostMapping("/rows/save/{templateId}")
+    public R<Void> saveRows(@PathVariable Long templateId,
+                            @org.springframework.web.bind.annotation.RequestBody List<WrTemplateRow> rows) {
+        requireAdmin();
+        templateService.replaceRows(templateId, rows);
         return R.ok();
     }
 

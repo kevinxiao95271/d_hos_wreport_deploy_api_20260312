@@ -109,3 +109,21 @@ CREATE INDEX IF NOT EXISTS idx_wr_attachment_rid ON wr_attachment(record_id);
 
 -- 补充 wr_record.resubmit_deadline 字段（幂等，列已存在时会报错被 DatabaseInitializer 忽略）
 ALTER TABLE wr_record ADD COLUMN IF NOT EXISTS resubmit_deadline TIMESTAMP;
+
+CREATE TABLE IF NOT EXISTS wr_template_row (
+    id               BIGINT       NOT NULL,
+    template_id      BIGINT       NOT NULL,
+    row_index        INT          NOT NULL,
+    row_label        VARCHAR(200) NOT NULL,
+    row_level        SMALLINT     NOT NULL DEFAULT 1,
+    parent_row_index INT,
+    sort_num         INT          NOT NULL DEFAULT 0,
+    create_user      BIGINT,
+    create_time      TIMESTAMP,
+    update_user      BIGINT,
+    update_time      TIMESTAMP,
+    del_flag         SMALLINT     NOT NULL DEFAULT 0,
+    CONSTRAINT pk_wr_template_row PRIMARY KEY (id),
+    CONSTRAINT uq_wr_template_row UNIQUE (template_id, row_index)
+);
+CREATE INDEX IF NOT EXISTS idx_wr_template_row_tid ON wr_template_row(template_id);
