@@ -19,12 +19,16 @@ public interface WrTaskMapper extends BaseMapper<WrTask> {
     @Select("SELECT * FROM wr_task WHERE status = 1 AND del_flag = 0 ORDER BY create_time DESC")
     List<WrTask> selectActiveTasks();
 
-    @Select("SELECT t.* FROM wr_task t WHERE t.status = 1 AND t.del_flag = 0 " +
-            "AND (NOT EXISTS (SELECT 1 FROM wr_task_org_scope s WHERE s.task_id = t.id) " +
-            "     OR EXISTS (SELECT 1 FROM wr_task_org_scope s WHERE s.task_id = t.id AND s.org_id = #{orgId})) " +
+    // LEFT JOIN 代替双层相关子查询，消除逐行子查询；走 idx_wr_task_org_scope_tid 和复合索引
+    @Select("SELECT t.* FROM wr_task t " +
+            "LEFT JOIN wr_task_org_scope s ON s.task_id = t.id AND s.org_id = #{orgId} " +
+            "WHERE t.status = 1 AND t.del_flag = 0 " +
+            "AND (s.org_id IS NOT NULL " +
+            "     OR NOT EXISTS (SELECT 1 FROM wr_task_org_scope x WHERE x.task_id = t.id)) " +
             "ORDER BY t.create_time DESC")
     List<WrTask> selectActiveTasksByOrg(@Param("orgId") Long orgId);
 
+    // 走复合索引 idx_wr_task_org_scope_tid_oid
     @Select("SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM wr_task_org_scope WHERE task_id=#{taskId}) " +
             "THEN 1 " +
             "ELSE (SELECT COUNT(1) FROM wr_task_org_scope WHERE task_id=#{taskId} AND org_id=#{orgId}) END")

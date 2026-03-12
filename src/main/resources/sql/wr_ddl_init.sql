@@ -52,7 +52,21 @@ CREATE TABLE IF NOT EXISTS wr_task (
     del_flag    SMALLINT     NOT NULL DEFAULT 0,
     CONSTRAINT pk_wr_task PRIMARY KEY (id)
 );
-CREATE INDEX IF NOT EXISTS idx_wr_task_status ON wr_task(status);
+CREATE INDEX IF NOT EXISTS idx_wr_task_status   ON wr_task(status);
+CREATE INDEX IF NOT EXISTS idx_wr_task_deadline ON wr_task(deadline) WHERE del_flag = 0;
+CREATE TABLE IF NOT EXISTS wr_task_org_scope (
+    id          BIGINT NOT NULL,
+    task_id     BIGINT NOT NULL,
+    org_id      BIGINT NOT NULL,
+    create_user BIGINT,
+    create_time TIMESTAMP,
+    CONSTRAINT pk_wr_task_org_scope PRIMARY KEY (id),
+    CONSTRAINT uq_wr_task_org_scope UNIQUE (task_id, org_id)
+);
+-- task_id 单独索引：NOT EXISTS / LEFT JOIN 过滤任务是否有范围限制
+CREATE INDEX IF NOT EXISTS idx_wr_task_org_scope_tid     ON wr_task_org_scope(task_id);
+-- 复合索引：isTaskInScope / selectActiveTasksByOrg 的 (task_id, org_id) 查询
+CREATE INDEX IF NOT EXISTS idx_wr_task_org_scope_tid_oid ON wr_task_org_scope(task_id, org_id);
 CREATE TABLE IF NOT EXISTS wr_record (
     id           BIGINT       NOT NULL,
     task_id      BIGINT       NOT NULL,
@@ -90,7 +104,11 @@ CREATE TABLE IF NOT EXISTS wr_record_value (
     CONSTRAINT pk_wr_record_value PRIMARY KEY (id),
     CONSTRAINT uq_wr_record_value UNIQUE (record_id, item_id, row_index)
 );
-CREATE INDEX IF NOT EXISTS idx_wr_record_value_rid ON wr_record_value(record_id);
+CREATE INDEX IF NOT EXISTS idx_wr_record_value_rid    ON wr_record_value(record_id);
+-- item_id 索引：aggregate 按列聚合时按 item_id 过滤
+CREATE INDEX IF NOT EXISTS idx_wr_record_value_iid    ON wr_record_value(item_id);
+-- 复合索引：按 (record_id, item_id) 快速回填单条记录的所有值
+CREATE INDEX IF NOT EXISTS idx_wr_record_value_rid_iid ON wr_record_value(record_id, item_id);
 CREATE TABLE IF NOT EXISTS wr_attachment (
     id          BIGINT       NOT NULL,
     record_id   BIGINT       NOT NULL,
