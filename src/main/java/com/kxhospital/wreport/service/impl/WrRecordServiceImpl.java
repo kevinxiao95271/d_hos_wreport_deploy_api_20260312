@@ -10,6 +10,7 @@ import com.kxhospital.wreport.pojo.request.RecordAuditRequest;
 import com.kxhospital.wreport.pojo.request.RecordSaveRequest;
 import com.kxhospital.wreport.pojo.request.RecordSubmitRequest;
 import com.kxhospital.wreport.pojo.response.AttachmentVO;
+import com.kxhospital.wreport.pojo.response.RecordAggregateResponse;
 import com.kxhospital.wreport.pojo.response.RecordDetailVO;
 import com.kxhospital.wreport.service.WrAttachmentService;
 import com.kxhospital.wreport.service.WrRecordService;
@@ -42,7 +43,11 @@ public class WrRecordServiceImpl implements WrRecordService {
     public Long saveOrUpdate(RecordSaveRequest req, LoginUser user) {
         WrTask task = taskMapper.selectById(req.getTaskId());
         if (task == null || task.getDelFlag() == 1) throw new RuntimeException("任务不存在");
+        if (taskMapper.isTaskInScope(req.getTaskId(), user.getOrgId()) == 0) {
+            throw new RuntimeException("任务未分配到当前机构");
+        }
 
+        String orgName = user.getRealName();
         // 查找或新建 record
         WrRecord record = recordMapper.findByTaskAndOrg(req.getTaskId(), user.getOrgId());
         if (record == null) {
@@ -50,12 +55,15 @@ public class WrRecordServiceImpl implements WrRecordService {
             record.setTaskId(req.getTaskId());
             record.setTemplateId(task.getTemplateId());
             record.setOrgId(user.getOrgId());
-            record.setOrgName(user.getOrgName());
+            record.setOrgName(orgName);
             record.setStatus(0); // 草稿
             recordMapper.insert(record);
         } else if (record.getStatus() == 2) {
             // 已审核通过，不允许再修改数据
             throw new RuntimeException("该记录已审核通过，无法修改");
+        } else if (!Objects.equals(record.getOrgName(), orgName)) {
+            record.setOrgName(orgName);
+            recordMapper.updateById(record);
         }
         // status=3（驳回）：允许继续修改数据，status 本身不变（submit 时才切回 1）
 
@@ -77,6 +85,10 @@ public class WrRecordServiceImpl implements WrRecordService {
         if (record == null) throw new RuntimeException("上报记录不存在");
         if (!record.getOrgId().equals(user.getOrgId())) throw new RuntimeException("无权操作");
         if (record.getStatus() == 2) throw new RuntimeException("已审核通过，不可重复提交");
+
+        if (taskMapper.isTaskInScope(record.getTaskId(), user.getOrgId()) == 0) {
+            throw new RuntimeException("任务未分配到当前机构");
+        }
 
         LocalDateTime now = LocalDateTime.now();
 
@@ -106,6 +118,11 @@ public class WrRecordServiceImpl implements WrRecordService {
     }
 
     @Override
+    public IPage<WrRecord> myPage(Page<WrRecord> page, LoginUser user, Long taskId, Integer status) {
+        return recordMapper.selectMyPage(page, user.getOrgId(), taskId, status);
+    }
+
+    @Override
     public WrRecord myRecord(Long taskId, LoginUser user) {
         return recordMapper.findByTaskAndOrg(taskId, user.getOrgId());
     }
@@ -121,6 +138,7 @@ public class WrRecordServiceImpl implements WrRecordService {
         vo.setRecord(record);
         vo.setValues(values);
         vo.setAttachments(attachments);
+        vo.setStatusLabel(statusLabel(record.getStatus()));
         return vo;
     }
 
@@ -183,15 +201,43 @@ public class WrRecordServiceImpl implements WrRecordService {
         }
     }
 
+    @Override
+    public RecordAggregateResponse aggregate(Long taskId) {
+        Map<String, Object> agg = recordMapper.selectAggregate(taskId);
+        RecordAggregateResponse response = new RecordAggregateResponse();
+        if (agg == null || agg.isEmpty()) {
+            response.setTotal(0L);
+            response.setDraft(0L);
+            response.setSubmitted(0L);
+            response.setApproved(0L);
+            response.setRejected(0L);
+            return response;
+        }
+        response.setTotal(toLong(agg.get("total")));
+        response.setDraft(toLong(agg.get("draft")));
+        response.setSubmitted(toLong(agg.get("submitted")));
+        response.setApproved(toLong(agg.get("approved")));
+        response.setRejected(toLong(agg.get("rejected")));
+        return response;
+    }
+
     private String statusLabel(Integer status) {
         if (status == null) return "";
         switch (status) {
-            case 0: return "草稿";
-            case 1: return "已提交";
-            case 2: return "审核通过";
+            case 0: return "未提交";
+            case 1: return "待审核";
+            case 2: return "已通过";
             case 3: return "已驳回";
             default: return status.toString();
         }
+    }
+
+    private Long toLong(Object value) {
+        if (value == null) return 0L;
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        return Long.parseLong(value.toString());
     }
 
     private List<WrRecordValue> buildValues(RecordSaveRequest req, Long recordId, Long templateId) {

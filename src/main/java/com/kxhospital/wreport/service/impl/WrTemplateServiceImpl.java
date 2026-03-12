@@ -9,7 +9,6 @@ import com.kxhospital.wreport.entity.WrTemplate;
 import com.kxhospital.wreport.entity.WrTemplateItem;
 import com.kxhospital.wreport.mapper.WrTemplateItemMapper;
 import com.kxhospital.wreport.mapper.WrTemplateMapper;
-import com.kxhospital.wreport.pojo.request.TemplateItemRequest;
 import com.kxhospital.wreport.service.WrTemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -76,6 +75,26 @@ public class WrTemplateServiceImpl implements WrTemplateService {
         LambdaUpdateWrapper<WrTemplateItem> w = new LambdaUpdateWrapper<>();
         w.eq(WrTemplateItem::getTemplateId, id).set(WrTemplateItem::getDelFlag, 1);
         itemMapper.update(null, w);
+    }
+
+    @Override
+    @Transactional
+    public void replaceItems(Long templateId, List<WrTemplateItem> items) {
+        itemMapper.deleteByTemplateId(templateId);
+        if (items == null) {
+            return;
+        }
+        for (WrTemplateItem item : items) {
+            item.setId(null);
+            item.setTemplateId(templateId);
+            item.setDelFlag(0);
+            itemMapper.insert(item);
+        }
+    }
+
+    @Override
+    public List<WrTemplate> listActive() {
+        return templateMapper.selectActiveList();
     }
 
     @Override

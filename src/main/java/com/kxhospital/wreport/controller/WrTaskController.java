@@ -7,7 +7,10 @@ import com.kxhospital.wreport.common.R;
 import com.kxhospital.wreport.common.UserContext;
 import com.kxhospital.wreport.entity.WrTask;
 import com.kxhospital.wreport.pojo.request.TaskAddRequest;
+import com.kxhospital.wreport.pojo.request.TaskScopeRequest;
+import com.kxhospital.wreport.pojo.response.TaskScopeResponse;
 import com.kxhospital.wreport.service.WrTaskService;
+import com.kxhospital.wreport.service.impl.WrTaskServiceImpl;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -26,6 +29,7 @@ import java.util.List;
 public class WrTaskController {
 
     private final WrTaskService taskService;
+    private final WrTaskServiceImpl taskServiceImpl;
 
     @Operation(summary = "分页查询任务（管理员）")
     @GetMapping("/page")
@@ -40,7 +44,27 @@ public class WrTaskController {
     @Operation(summary = "获取进行中的任务列表（机构用户）")
     @GetMapping("/active")
     public R<List<WrTask>> activeList() {
-        return R.ok(taskService.activeList());
+        LoginUser u = UserContext.get();
+        if (u == null) throw new RuntimeException("未登录");
+        return R.ok(taskService.activeList(u.getOrgId()));
+    }
+
+    @Operation(summary = "查询任务范围（管理员）")
+    @GetMapping("/scope/{taskId}")
+    public R<TaskScopeResponse> getScope(@PathVariable Long taskId) {
+        requireAdmin();
+        TaskScopeResponse resp = new TaskScopeResponse();
+        resp.setTaskId(taskId);
+        resp.setOrgIds(taskServiceImpl.getScopeOrgIds(taskId));
+        return R.ok(resp);
+    }
+
+    @Operation(summary = "设置任务范围（管理员，空列表=全量）")
+    @PostMapping("/scope/{taskId}")
+    public R<Void> setScope(@PathVariable Long taskId, @RequestBody TaskScopeRequest req) {
+        LoginUser u = requireAdmin();
+        taskServiceImpl.replaceScope(taskId, req != null ? req.getOrgIds() : null, u);
+        return R.ok();
     }
 
     @Operation(summary = "任务详情")
@@ -52,10 +76,12 @@ public class WrTaskController {
     @Operation(summary = "新增任务（管理员）")
     @PostMapping("/add")
     public R<Long> add(@Valid @RequestBody TaskAddRequest req) {
-        requireAdmin();
+        LoginUser u = requireAdmin();
         WrTask task = new WrTask();
         BeanUtils.copyProperties(req, task);
-        return R.ok(taskService.add(task));
+        Long taskId = taskService.add(task);
+        taskServiceImpl.replaceScope(taskId, req.getOrgIds(), u);
+        return R.ok(taskId);
     }
 
     @Operation(summary = "修改任务（管理员）")
@@ -82,8 +108,9 @@ public class WrTaskController {
         return R.ok();
     }
 
-    private void requireAdmin() {
+    private LoginUser requireAdmin() {
         LoginUser u = UserContext.get();
         if (u == null || !u.isAdmin()) throw new RuntimeException("权限不足，需要管理员角色");
+        return u;
     }
 }

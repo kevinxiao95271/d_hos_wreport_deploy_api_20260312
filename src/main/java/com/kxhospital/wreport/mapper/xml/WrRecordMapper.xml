@@ -18,4 +18,30 @@
         ORDER BY create_time DESC
     </select>
 
+    <select id="selectMyPage" resultType="com.kxhospital.wreport.entity.WrRecord">
+        SELECT * FROM wr_record
+        WHERE del_flag = 0 AND org_id = #{orgId}
+        <if test="taskId != null">
+            AND task_id = #{taskId}
+        </if>
+        <if test="status != null">
+            AND status = #{status}
+        </if>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectAggregate" resultType="java.util.HashMap">
+        SELECT
+            COUNT(1) AS total,
+            SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) AS draft,
+            SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS submitted,
+            SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS approved,
+            SUM(CASE WHEN status = 3 THEN 1 ELSE 0 END) AS rejected
+        FROM wr_record
+        WHERE del_flag = 0
+        <if test="taskId != null">
+            AND task_id = #{taskId}
+        </if>
+    </select>
+
 </mapper>

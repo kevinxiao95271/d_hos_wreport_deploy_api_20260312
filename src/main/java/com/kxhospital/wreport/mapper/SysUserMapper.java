@@ -48,8 +48,9 @@ public interface SysUserMapper {
     @Update("UPDATE sys_user SET password = #{password} WHERE account = #{account}")
     void updatePassword(@Param("account") String account, @Param("password") String password);
 
-    @Select("SELECT u.user_id, u.account, u.real_name, u.org_id, " +
-            "       ho.org_name, u.status_flag " +
+    @Select("SELECT u.user_id AS \"userId\", u.account, " +
+            "       u.real_name AS \"realName\", u.org_id AS \"orgId\", " +
+            "       ho.org_name AS \"orgName\", u.status_flag AS \"statusFlag\" " +
             "FROM sys_user u " +
             "LEFT JOIN hr_organization ho ON ho.org_id = u.org_id " +
             "WHERE u.del_flag = 'N' " +

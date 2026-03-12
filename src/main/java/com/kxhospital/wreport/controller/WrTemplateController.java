@@ -11,6 +11,10 @@ import com.kxhospital.wreport.pojo.request.TemplateAddRequest;
 import com.kxhospital.wreport.pojo.request.TemplateItemRequest;
 import com.kxhospital.wreport.service.WrTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -55,7 +59,35 @@ public class WrTemplateController {
         return R.ok(templateService.items(templateId));
     }
 
+    @Operation(summary = "覆盖保存模板表头", description = "全量覆盖模板表头项列表")
+    @ApiResponse(responseCode = "200", description = "success", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = "{\"code\":200,\"message\":\"success\",\"data\":null}")))
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "模板表头项列表", required = true, content = @Content(mediaType = "application/json", examples = @ExampleObject(value = "[{\"itemName\":\"技术指导中心名称\",\"headerRow\":3,\"colIndex\":1,\"rowSpan\":1,\"colSpan\":1,\"isLeaf\":1,\"valueType\":\"text\",\"sortNum\":1}]")))
+    @PostMapping("/items/save/{templateId}")
+    public R<Void> saveItems(@PathVariable Long templateId,
+                             @org.springframework.web.bind.annotation.RequestBody List<TemplateItemRequest> items) {
+        requireAdmin();
+        List<WrTemplateItem> entityItems = new ArrayList<>();
+        if (items != null) {
+            for (TemplateItemRequest ir : items) {
+                WrTemplateItem item = new WrTemplateItem();
+                BeanUtils.copyProperties(ir, item);
+                entityItems.add(item);
+            }
+        }
+        templateService.replaceItems(templateId, entityItems);
+        return R.ok();
+    }
+
+    @Operation(summary = "模板列表(不分页，仅启用)", description = "仅返回 status=1 的模板")
+    @ApiResponse(responseCode = "200", description = "success", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = "{\"code\":200,\"message\":\"success\",\"data\":[{\"id\":2032126966508843010,\"templateName\":\"附件3：省市县质控中心设立情况统计表\",\"status\":1}]}")))
+    @GetMapping("/list")
+    public R<List<WrTemplate>> list() {
+        requireAdmin();
+        return R.ok(templateService.listActive());
+    }
+
     @Operation(summary = "新增模板")
+    @ApiResponse(responseCode = "200", description = "success", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = "{\"code\":200,\"message\":\"success\",\"data\":2032126966508843010}")))
     @PostMapping("/add")
     public R<Long> add(@Valid @RequestBody TemplateAddRequest req) {
         requireAdmin();

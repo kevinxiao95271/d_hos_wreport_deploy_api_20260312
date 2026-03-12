@@ -13,5 +13,5 @@ public interface WrTaskService {
     void update(WrTask task);
     void updateStatus(Long id, Integer status);
     void delete(Long id);
-    List<WrTask> activeList();
+    List<WrTask> activeList(Long orgId);
 }

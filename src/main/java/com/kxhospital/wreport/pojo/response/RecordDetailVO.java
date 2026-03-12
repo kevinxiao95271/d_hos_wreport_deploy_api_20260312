@@ -13,4 +13,5 @@ public class RecordDetailVO {
     private WrRecord record;
     private List<WrRecordValue> values;
     private List<AttachmentVO>  attachments;
+    private String statusLabel;
 }

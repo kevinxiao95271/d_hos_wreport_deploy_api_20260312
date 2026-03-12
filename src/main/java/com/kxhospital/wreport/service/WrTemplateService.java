@@ -18,4 +18,6 @@ public interface WrTemplateService {
     void delete(Long id);
     String uploadFormatTemplate(Long itemId, MultipartFile file);
     void deleteFormatTemplate(Long itemId);
+    void replaceItems(Long templateId, List<WrTemplateItem> items);
+    List<WrTemplate> listActive();
 }
