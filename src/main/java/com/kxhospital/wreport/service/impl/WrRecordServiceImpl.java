@@ -27,6 +27,7 @@ import java.net.URLEncoder;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.kxhospital.wreport.entity.WrTemplateItem;
 
 @Service
 @RequiredArgsConstructor
@@ -133,16 +134,50 @@ public class WrRecordServiceImpl implements WrRecordService {
     public RecordDetailVO detail(Long recordId) {
         WrRecord record = recordMapper.selectById(recordId);
         if (record == null) throw new RuntimeException("记录不存在");
-        List<WrRecordValue> values = valueMapper.selectByRecordId(recordId);
-        List<AttachmentVO>  attachments = attachmentService.listByRecord(recordId);
+        List<WrRecordValue>  values      = valueMapper.selectByRecordId(recordId);
+        List<AttachmentVO>   attachments = attachmentService.listByRecord(recordId);
+
+        // 从 values 中提取本记录实际涉及的 itemId 集合
+        Set<Long> usedItemIds = values.stream()
+                .map(WrRecordValue::getItemId)
+                .collect(Collectors.toSet());
+
+        // 获取模板全量列定义，只保留：
+        //   1. 本记录 values 中出现过的叶子列（isLeaf=1）
+        //   2. 这些叶子列的所有祖先节点（isLeaf=0），用于前端构建多级表头
+        List<WrTemplateItem> allItems = templateService.items(record.getTemplateId());
+        Set<Long> ancestorIds = new HashSet<>();
+        for (WrTemplateItem it : allItems) {
+            if (it.getIsLeaf() == 1 && usedItemIds.contains(it.getId())) {
+                // 向上追溯父节点
+                Long pid = it.getParentId();
+                while (pid != null) {
+                    ancestorIds.add(pid);
+                    final Long fpid = pid;
+                    pid = allItems.stream()
+                            .filter(x -> x.getId().equals(fpid))
+                            .findFirst()
+                            .map(WrTemplateItem::getParentId)
+                            .orElse(null);
+                }
+            }
+        }
+        List<WrTemplateItem> filteredItems = allItems.stream()
+                .filter(it -> usedItemIds.contains(it.getId()) || ancestorIds.contains(it.getId()))
+                .collect(Collectors.toList());
 
         RecordDetailVO vo = new RecordDetailVO();
         vo.setRecord(record);
         vo.setValues(values);
         vo.setAttachments(attachments);
         vo.setStatusLabel(statusLabel(record.getStatus()));
-        // 矩阵类模板（checkbox）一并返回行定义，前端无需再单独请求 /wr/template/rows
-        vo.setRows(templateService.listRows(record.getTemplateId()));
+        vo.setItems(filteredItems);
+        List<WrTemplateRow> rows = templateService.listRows(record.getTemplateId());
+        vo.setRows(rows);
+        // 两种模板都返回 filteredItems：
+        //   标准模板 → 所有叶子列 + 祖先节点，供前端构建多级表头
+        //   矩阵模板 → 仅本机构那1列（含 itemId），前端保存时需要；列名不展示即可
+        vo.setItems(filteredItems);
         return vo;
     }
 
