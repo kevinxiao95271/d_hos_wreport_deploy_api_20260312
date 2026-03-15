@@ -19,8 +19,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -46,14 +46,38 @@ public class WrTemplateServiceImpl implements WrTemplateService {
     public TemplateDetailVO detailFull(Long id) {
         TemplateDetailVO vo = new TemplateDetailVO();
         vo.setTemplate(templateMapper.selectById(id));
-        vo.setItems(itemMapper.selectByTemplateId(id));
+        List<WrTemplateItem> items = itemMapper.selectByTemplateId(id);
+        fillHeaderPath(items);
+        vo.setItems(items);
         vo.setRows(rowMapper.selectByTemplateId(id));
         return vo;
     }
 
     @Override
     public List<WrTemplateItem> items(Long templateId) {
-        return itemMapper.selectByTemplateId(templateId);
+        List<WrTemplateItem> items = itemMapper.selectByTemplateId(templateId);
+        fillHeaderPath(items);
+        return items;
+    }
+
+    /**
+     * 为列表中每个节点计算并填充 headerPath（从根到本节点的名称列表）。
+     * 例如三级结构：["2024年", "学术会议", "线上次数"]
+     * 前端填报页面可用 headerPath.join(" / ") 作为字段标签，避免重名歧义。
+     */
+    private void fillHeaderPath(List<WrTemplateItem> items) {
+        if (items == null || items.isEmpty()) return;
+        Map<Long, WrTemplateItem> byId = items.stream()
+                .collect(Collectors.toMap(WrTemplateItem::getId, i -> i));
+        for (WrTemplateItem item : items) {
+            List<String> path = new ArrayList<>();
+            WrTemplateItem cur = item;
+            while (cur != null) {
+                path.add(0, cur.getItemName());
+                cur = cur.getParentId() != null ? byId.get(cur.getParentId()) : null;
+            }
+            item.setHeaderPath(path);
+        }
     }
 
     @Override

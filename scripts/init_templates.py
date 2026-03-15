@@ -206,8 +206,14 @@ def run():
     print(f"[附件2] 模板 id={TPL2_ID} 写入完成，共 {len(items_tpl2)} 列")
 
     # ══════════════════════════════════════════════════════════════════════════
-    # 附件3：省市县质控中心设立情况统计表（checkbox矩阵，27列+总计，~120行）
+    # 附件3：省市县质控中心设立情况统计表（checkbox矩阵，1列，~120行）
+    # 列只有1个"已成立"——模板只定义结构，不硬编码机构列表。
+    # 每个机构提交自己的1条 record，用 wr_record.org_name 区分是谁填的。
     # ══════════════════════════════════════════════════════════════════════════
+    TPL3_ITEM_ID    = 2_000_000_000_100_001   # 已成立（checkbox）
+    TPL3_ITEM_CITY  = 2_000_000_000_100_002   # 市级成立个数（number）
+    TPL3_ITEM_CTY   = 2_000_000_000_100_003   # 县级成立个数（number）
+
     cur.execute("""
         INSERT INTO wr_template(id,template_name,description,status,del_flag)
         VALUES(%s,%s,%s,1,0)
@@ -215,27 +221,31 @@ def run():
           "附件3：省市县质控中心设立情况统计表",
           "省市县质控中心/技术指导中心设立情况统计，每格为勾选（已成立=1）"))
 
-    centers = [
-        "防盲","医院管理","核医学","烧伤救治","中毒急救","临床营养","人工肝","病理尸体",
-        "皮肤病临床诊治","医院图书管理","细菌耐药","结直肠","神经外科","骨科","口腔正畸",
-        "分娩镇痛","全科医学","甲状腺诊治","老年病","日间手术","口腔种植","生殖微创",
-        "角膜病诊治","肿瘤靶向","胎儿心超","呼吸疾病",
-    ]
-    for i, name in enumerate(centers, start=1):
+    # 3 个独立的 item：
+    #   已成立     - checkbox，矩阵勾选列
+    #   市级成立个数 - number，独立数字填报项（不参与树联动）
+    #   县级成立个数 - number，独立数字填报项（不参与树联动）
+    for iid, name, vtype, col, srt in [
+        (TPL3_ITEM_ID,   "已成立",     "checkbox", 1, 1),
+        (TPL3_ITEM_CITY, "市级成立个数","number",   2, 2),
+        (TPL3_ITEM_CTY,  "县级成立个数","number",   3, 3),
+    ]:
         cur.execute("""
             INSERT INTO wr_template_item
               (id,template_id,parent_id,item_name,header_row,col_index,row_span,col_span,is_leaf,value_type,sort_num,del_flag)
-            VALUES(%s,%s,NULL,%s,1,%s,1,1,1,'checkbox',%s,0)
-        """, (next_id(), TPL3_ID, name+"技术指导中心", i, i))
+            VALUES(%s,%s,NULL,%s,1,%s,1,1,1,%s,%s,0)
+        """, (iid, TPL3_ID, name, col, vtype, srt))
 
-    print(f"[附件3] 模板 id={TPL3_ID} 列定义写入完成，共 {len(centers)} 列")
+    print(f"[附件3] 模板 id={TPL3_ID} 列定义写入完成，共3项（已成立/市级成立个数/县级成立个数）")
 
-    # 行定义（三级：省级汇总=level1，市级=level2，县/区=level3）
-    # 格式：(row_index, row_label, row_level, parent_row_index)
+    # 行定义说明：
+    #   - 行 1/2 为省级汇总勾选行（无父节点，无子节点，独立勾选）
+    #   - 行 4-14 为各市"市级"勾选行（level=2，无父行，前端可按 level 分组展示）
+    #   - 行 16/30/... 为市级行，其下县区为 level=3 子节点（参与树联动）
+    #   - 原"市级成立个数"(row3) 和"县级成立个数"(row15) 已移为独立 item，此处不再定义为行
     rows_tpl3 = [
         (1,  "省市县全部成立",  1, None),
         (2,  "市级全部成立",    1, None),
-        (3,  "市级成立个数",    1, None),
         (4,  "杭州市级",       2, None),
         (5,  "宁波市级",       2, None),
         (6,  "温州市级",       2, None),
@@ -247,7 +257,6 @@ def run():
         (12, "舟山市级",       2, None),
         (13, "台州市级",       2, None),
         (14, "丽水市级",       2, None),
-        (15, "县级成立个数",   1, None),
         # 杭州市
         (16, "杭州市",        2, None),
         (17, "上城区",        3, 16),
