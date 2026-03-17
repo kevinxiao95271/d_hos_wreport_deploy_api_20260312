@@ -36,14 +36,15 @@ import com.kxhospital.wreport.mapper.WrDictMapper;
 @RequiredArgsConstructor
 public class WrRecordServiceImpl implements WrRecordService {
 
-    private final WrRecordMapper       recordMapper;
-    private final WrRecordValueMapper  valueMapper;
-    private final WrTaskMapper         taskMapper;
-    private final WrTemplateItemMapper itemMapper;
-    private final WrAttachmentService  attachmentService;
-    private final WrAttachmentMapper   attachmentMapper;
-    private final WrTemplateService    templateService;
-    private final WrDictMapper         dictMapper;
+    private final WrRecordMapper        recordMapper;
+    private final WrRecordValueMapper   valueMapper;
+    private final WrTaskMapper          taskMapper;
+    private final WrTemplateItemMapper  itemMapper;
+    private final WrAttachmentService   attachmentService;
+    private final WrAttachmentMapper    attachmentMapper;
+    private final WrTemplateService     templateService;
+    private final WrDictMapper          dictMapper;
+    private final WrTaskOrgScopeMapper  taskOrgScopeMapper;
 
     @Override
     @Transactional
@@ -246,17 +247,21 @@ public class WrRecordServiceImpl implements WrRecordService {
 
     @Override
     public RecordAggregateResponse aggregate(Long taskId) {
+        // total = 该任务分配的机构总数（无论是否已开始填报）
+        long assignedTotal = taskOrgScopeMapper.selectCount(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<WrTaskOrgScope>()
+                        .eq(WrTaskOrgScope::getTaskId, taskId));
+
         Map<String, Object> agg = recordMapper.selectAggregate(taskId);
         RecordAggregateResponse response = new RecordAggregateResponse();
+        response.setTotal(assignedTotal);
         if (agg == null || agg.isEmpty()) {
-            response.setTotal(0L);
             response.setDraft(0L);
             response.setSubmitted(0L);
             response.setApproved(0L);
             response.setRejected(0L);
             return response;
         }
-        response.setTotal(toLong(agg.get("total")));
         response.setDraft(toLong(agg.get("draft")));
         response.setSubmitted(toLong(agg.get("submitted")));
         response.setApproved(toLong(agg.get("approved")));
