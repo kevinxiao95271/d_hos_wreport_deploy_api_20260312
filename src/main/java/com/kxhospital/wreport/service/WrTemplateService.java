@@ -22,6 +22,13 @@ public interface WrTemplateService {
     String uploadFormatTemplate(Long itemId, MultipartFile file);
     void deleteFormatTemplate(Long itemId);
     void replaceItems(Long templateId, List<WrTemplateItem> items);
+    /**
+     * 单独更新表头叶子节点的字典绑定。
+     * dictCode 为 null 或空串 → 解绑（切回普通输入框）；
+     * dictCode 为有效值 → 绑定字典（切为下拉选择框）。
+     * 两个方向均不抛错，不影响已有填报数据。
+     */
+    void updateItemDict(Long itemId, String dictCode);
     List<WrTemplate> listActive();
     List<WrTemplateRow> listRows(Long templateId);
     void replaceRows(Long templateId, List<WrTemplateRow> rows);

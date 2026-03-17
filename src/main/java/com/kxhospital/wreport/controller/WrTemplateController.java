@@ -137,6 +137,19 @@ public class WrTemplateController {
         return R.ok();
     }
 
+    @Operation(summary = "设置/清除表头项的字典绑定",
+               description = "dictCode 传空串或不传 body → 解绑（切回普通输入框）；" +
+                             "传有效 dictCode → 绑定字典（切为下拉框）。两个方向均安全，不影响已填报数据。")
+    @PostMapping("/item/dict/{itemId}")
+    public R<Void> updateItemDict(@PathVariable Long itemId,
+                                  @org.springframework.web.bind.annotation.RequestBody(required = false)
+                                  java.util.Map<String, String> body) {
+        requireAdmin();
+        String dictCode = (body != null) ? body.get("dictCode") : null;
+        templateService.updateItemDict(itemId, dictCode);
+        return R.ok();
+    }
+
     @Operation(summary = "上传格式模板文件（管理员绑定到表头项）")
     @PostMapping("/item/upload-format/{itemId}")
     public R<String> uploadFormat(@PathVariable Long itemId,

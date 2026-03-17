@@ -132,6 +132,17 @@ public class WrTemplateServiceImpl implements WrTemplateService {
     }
 
     @Override
+    public void updateItemDict(Long itemId, String dictCode) {
+        if (itemMapper.selectById(itemId) == null) throw new RuntimeException("表头项不存在: " + itemId);
+        // 空串统一视为 null（解绑）
+        String value = (dictCode != null && !dictCode.trim().isEmpty()) ? dictCode.trim() : null;
+        // 必须用 LambdaUpdateWrapper 才能显式写 NULL，updateById 默认跳过 null 字段
+        LambdaUpdateWrapper<WrTemplateItem> w = new LambdaUpdateWrapper<>();
+        w.eq(WrTemplateItem::getId, itemId).set(WrTemplateItem::getDictCode, value);
+        itemMapper.update(null, w);
+    }
+
+    @Override
     public List<WrTemplate> listActive() {
         return templateMapper.selectActiveList();
     }
