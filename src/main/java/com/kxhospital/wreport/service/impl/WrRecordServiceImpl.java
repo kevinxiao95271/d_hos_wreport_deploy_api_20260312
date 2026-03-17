@@ -10,6 +10,7 @@ import com.kxhospital.wreport.pojo.request.RecordAuditRequest;
 import com.kxhospital.wreport.pojo.request.RecordSaveRequest;
 import com.kxhospital.wreport.pojo.request.RecordSubmitRequest;
 import com.kxhospital.wreport.pojo.response.AttachmentVO;
+import com.kxhospital.wreport.pojo.response.CrossViewVO;
 import com.kxhospital.wreport.pojo.response.RecordAggregateResponse;
 import com.kxhospital.wreport.pojo.response.RecordDetailVO;
 import com.kxhospital.wreport.service.WrAttachmentService;
@@ -27,7 +28,9 @@ import java.net.URLEncoder;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+import com.kxhospital.wreport.entity.WrDictItem;
 import com.kxhospital.wreport.entity.WrTemplateItem;
+import com.kxhospital.wreport.mapper.WrDictMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +43,7 @@ public class WrRecordServiceImpl implements WrRecordService {
     private final WrAttachmentService  attachmentService;
     private final WrAttachmentMapper   attachmentMapper;
     private final WrTemplateService    templateService;
+    private final WrDictMapper         dictMapper;
 
     @Override
     @Transactional
@@ -310,6 +314,157 @@ public class WrRecordServiceImpl implements WrRecordService {
         v.setCreateTime(LocalDateTime.now());
         v.setUpdateTime(LocalDateTime.now());
         return v;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // crossView：跨机构横向对比视图
+    // ──────────────────────────────────────────────────────────────────────────
+
+    @Override
+    public CrossViewVO crossView(Long taskId, List<Long> itemIds) {
+        WrTask task = taskMapper.selectById(taskId);
+        if (task == null) throw new RuntimeException("任务不存在");
+        Long templateId = task.getTemplateId();
+
+        // 全量模板行/列定义
+        List<WrTemplateItem> allItems = templateService.items(templateId);
+        List<WrTemplateRow>  allRows  = templateService.listRows(templateId);
+        boolean isMatrix = !allRows.isEmpty();
+
+        // 查该任务所有 record
+        List<WrRecord> records = recordMapper.selectByTaskId(taskId);
+        if (records.isEmpty()) {
+            CrossViewVO vo = new CrossViewVO();
+            vo.setTemplateType(isMatrix ? "matrix" : "standard");
+            return vo;
+        }
+
+        // 一次批量拉取所有 record 的值
+        List<Long> recordIds = records.stream().map(WrRecord::getId).collect(Collectors.toList());
+        List<WrRecordValue> allValues = valueMapper.selectByRecordIds(recordIds);
+
+        // recordId → List<Value>
+        Map<Long, List<WrRecordValue>> valuesByRecord = allValues.stream()
+                .collect(Collectors.groupingBy(WrRecordValue::getRecordId));
+
+        // 构建字典翻译 map：dictCode → { itemValue → itemLabel }
+        Map<String, Map<String, String>> dictLabelMap = buildDictLabelMap(allItems);
+
+        CrossViewVO vo = new CrossViewVO();
+        vo.setTemplateType(isMatrix ? "matrix" : "standard");
+
+        if (!isMatrix) {
+            // ── 标准模板（附件2）────────────────────────────────────────────────
+            // 过滤展示列：itemIds 为空时取全部叶子列
+            List<WrTemplateItem> showItems = allItems.stream()
+                    .filter(i -> i.getIsLeaf() == 1)
+                    .filter(i -> itemIds == null || itemIds.isEmpty() || itemIds.contains(i.getId()))
+                    .collect(Collectors.toList());
+            vo.setItems(showItems);
+            Set<Long> showItemIdSet = showItems.stream().map(WrTemplateItem::getId).collect(Collectors.toSet());
+
+            List<CrossViewVO.OrgRow> orgRows = new ArrayList<>();
+            for (WrRecord rec : records) {
+                CrossViewVO.OrgRow row = new CrossViewVO.OrgRow();
+                row.setOrgId(rec.getOrgId());
+                row.setOrgName(rec.getOrgName());
+                row.setRecordId(rec.getId());
+                row.setStatus(rec.getStatus());
+                row.setStatusLabel(statusLabel(rec.getStatus()));
+
+                List<WrRecordValue> recValues = valuesByRecord.getOrDefault(rec.getId(), Collections.emptyList());
+                List<CrossViewVO.Cell> cells = new ArrayList<>();
+                for (WrRecordValue rv : recValues) {
+                    if (!showItemIdSet.contains(rv.getItemId())) continue;
+                    CrossViewVO.Cell cell = new CrossViewVO.Cell();
+                    cell.setItemId(rv.getItemId());
+                    cell.setCellValue(rv.getCellValue());
+                    cell.setCellLabel(translateCell(rv.getItemId(), rv.getCellValue(), allItems, dictLabelMap));
+                    cells.add(cell);
+                }
+                row.setCells(cells);
+                orgRows.add(row);
+            }
+            vo.setOrgRows(orgRows);
+
+        } else {
+            // ── 矩阵模板（附件3）────────────────────────────────────────────────
+            // 分离 checkbox 列 和 number 列
+            List<WrTemplateItem> numberItems = allItems.stream()
+                    .filter(i -> i.getIsLeaf() == 1 && !"checkbox".equals(i.getValueType()))
+                    .collect(Collectors.toList());
+            Set<Long> numberItemIds = numberItems.stream().map(WrTemplateItem::getId).collect(Collectors.toSet());
+
+            vo.setRows(allRows);
+            vo.setNumberItems(numberItems);
+
+            // orgCols：每个机构一列
+            List<CrossViewVO.OrgCol> orgCols = new ArrayList<>();
+            for (WrRecord rec : records) {
+                CrossViewVO.OrgCol col = new CrossViewVO.OrgCol();
+                col.setOrgId(rec.getOrgId());
+                col.setOrgName(rec.getOrgName());
+                col.setRecordId(rec.getId());
+                col.setStatus(rec.getStatus());
+                col.setStatusLabel(statusLabel(rec.getStatus()));
+                orgCols.add(col);
+            }
+            vo.setOrgCols(orgCols);
+
+            // matrixValues / numberValues
+            List<CrossViewVO.MatrixCell> matrixValues = new ArrayList<>();
+            List<CrossViewVO.NumberCell> numberValues  = new ArrayList<>();
+            for (WrRecord rec : records) {
+                List<WrRecordValue> recValues = valuesByRecord.getOrDefault(rec.getId(), Collections.emptyList());
+                for (WrRecordValue rv : recValues) {
+                    if (numberItemIds.contains(rv.getItemId())) {
+                        CrossViewVO.NumberCell nc = new CrossViewVO.NumberCell();
+                        nc.setOrgId(rec.getOrgId());
+                        nc.setItemId(rv.getItemId());
+                        nc.setCellValue(rv.getCellValue());
+                        numberValues.add(nc);
+                    } else {
+                        CrossViewVO.MatrixCell mc = new CrossViewVO.MatrixCell();
+                        mc.setOrgId(rec.getOrgId());
+                        mc.setRowIndex(rv.getRowIndex());
+                        mc.setCellValue(rv.getCellValue());
+                        matrixValues.add(mc);
+                    }
+                }
+            }
+            vo.setMatrixValues(matrixValues);
+            vo.setNumberValues(numberValues);
+        }
+        return vo;
+    }
+
+    /** 构建字典翻译 map：dictCode → { itemValue → itemLabel } */
+    private Map<String, Map<String, String>> buildDictLabelMap(List<WrTemplateItem> items) {
+        Set<String> dictCodes = items.stream()
+                .filter(i -> i.getDictCode() != null)
+                .map(WrTemplateItem::getDictCode)
+                .collect(Collectors.toSet());
+        Map<String, Map<String, String>> result = new HashMap<>();
+        for (String code : dictCodes) {
+            List<WrDictItem> dictItems = dictMapper.selectItemsByCode(code);
+            Map<String, String> valToLabel = new HashMap<>();
+            dictItems.forEach(di -> valToLabel.put(di.getItemValue(), di.getItemLabel()));
+            result.put(code, valToLabel);
+        }
+        return result;
+    }
+
+    /** 翻译单个格的值：有字典则返回 label，否则返回原值 */
+    private String translateCell(Long itemId, String cellValue,
+                                 List<WrTemplateItem> allItems,
+                                 Map<String, Map<String, String>> dictLabelMap) {
+        if (cellValue == null) return null;
+        return allItems.stream()
+                .filter(i -> i.getId().equals(itemId) && i.getDictCode() != null)
+                .findFirst()
+                .map(i -> dictLabelMap.getOrDefault(i.getDictCode(), Collections.emptyMap())
+                        .getOrDefault(cellValue, cellValue))
+                .orElse(cellValue);
     }
 
     @Data

@@ -7,10 +7,12 @@ import com.kxhospital.wreport.entity.WrRecord;
 import com.kxhospital.wreport.pojo.request.RecordSaveRequest;
 import com.kxhospital.wreport.pojo.request.RecordSubmitRequest;
 import com.kxhospital.wreport.pojo.request.RecordAuditRequest;
+import com.kxhospital.wreport.pojo.response.CrossViewVO;
 import com.kxhospital.wreport.pojo.response.RecordAggregateResponse;
 import com.kxhospital.wreport.pojo.response.RecordDetailVO;
 
 import javax.servlet.http.HttpServletResponse;
+import java.util.List;
 
 public interface WrRecordService {
     Long saveOrUpdate(RecordSaveRequest req, LoginUser user);
@@ -22,4 +24,11 @@ public interface WrRecordService {
     void audit(RecordAuditRequest req, LoginUser user);
     void exportExcel(Long taskId, HttpServletResponse response);
     RecordAggregateResponse aggregate(Long taskId);
+
+    /**
+     * 跨机构横向视图。
+     * @param taskId   任务ID
+     * @param itemIds  标准模板：选中展示的叶子列ID（null=全部）；矩阵模板忽略此参数
+     */
+    CrossViewVO crossView(Long taskId, List<Long> itemIds);
 }

@@ -9,6 +9,7 @@ import com.kxhospital.wreport.entity.WrRecord;
 import com.kxhospital.wreport.pojo.request.RecordAuditRequest;
 import com.kxhospital.wreport.pojo.request.RecordSaveRequest;
 import com.kxhospital.wreport.pojo.request.RecordSubmitRequest;
+import com.kxhospital.wreport.pojo.response.CrossViewVO;
 import com.kxhospital.wreport.pojo.response.RecordAggregateResponse;
 import com.kxhospital.wreport.pojo.response.RecordDetailVO;
 import com.kxhospital.wreport.service.WrRecordService;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
+import java.util.List;
 
 @Tag(name = "上报管理")
 @RestController
@@ -86,6 +88,17 @@ public class WrRecordController {
     public R<RecordAggregateResponse> aggregate(@RequestParam(required = false) Long taskId) {
         requireAdmin();
         return R.ok(recordService.aggregate(taskId));
+    }
+
+    @Operation(summary = "跨机构横向视图（管理员）",
+               description = "标准模板：列=选中字段，行=各机构；矩阵模板：列=各机构，行=地理层级行。" +
+                             "itemIds 仅对标准模板生效（逗号分隔），不传则返回全部叶子列。")
+    @GetMapping("/admin/crossview")
+    public R<CrossViewVO> crossView(
+            @RequestParam Long taskId,
+            @RequestParam(required = false) List<Long> itemIds) {
+        requireAdmin();
+        return R.ok(recordService.crossView(taskId, itemIds));
     }
 
     @Operation(summary = "上报详情（含数据值和附件）", description = "返回详情及 statusLabel")

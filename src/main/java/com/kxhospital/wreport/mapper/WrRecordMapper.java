@@ -8,6 +8,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
 import java.util.Map;
 
 @Mapper
@@ -27,4 +28,8 @@ public interface WrRecordMapper extends BaseMapper<WrRecord> {
     WrRecord findByTaskAndOrg(@Param("taskId") Long taskId, @Param("orgId") Long orgId);
 
     Map<String, Object> selectAggregate(@Param("taskId") Long taskId);
+
+    /** 查询某任务下所有记录（crossview用） */
+    @Select("SELECT * FROM wr_record WHERE task_id = #{taskId} AND del_flag = 0 ORDER BY org_name")
+    List<WrRecord> selectByTaskId(@Param("taskId") Long taskId);
 }
