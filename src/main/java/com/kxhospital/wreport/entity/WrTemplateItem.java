@@ -33,6 +33,12 @@ public class WrTemplateItem implements Serializable {
     @TableField(fill = FieldFill.INSERT_UPDATE) private LocalDateTime updateTime;
     @TableLogic(value = "0", delval = "1") private Integer delFlag;
 
+    /**
+     * 绑定的字典编码（对应 wr_dict_type.dict_code）。
+     * 非空时前端渲染下拉选择框，为空时按 valueType 渲染普通输入框。
+     */
+    private String dictCode;
+
     /** 从根到本节点的名称路径，例如 ["2024年","学术会议","线上次数"]，不持久化，由 Service 计算后填充 */
     @TableField(exist = false)
     private List<String> headerPath;
