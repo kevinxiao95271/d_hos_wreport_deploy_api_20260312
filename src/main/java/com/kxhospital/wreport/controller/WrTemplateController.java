@@ -15,17 +15,14 @@ import com.kxhospital.wreport.service.WrTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
-import java.util.ArrayList;
 import java.util.List;
 
 @Tag(name = "模板管理（Admin）")
@@ -66,22 +63,14 @@ public class WrTemplateController {
         return R.ok(templateService.items(templateId));
     }
 
-    @Operation(summary = "覆盖保存模板表头", description = "全量覆盖模板表头项列表")
-    @ApiResponse(responseCode = "200", description = "success", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = "{\"code\":200,\"message\":\"success\",\"data\":null}")))
-    @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "模板表头项列表", required = true, content = @Content(mediaType = "application/json", examples = @ExampleObject(value = "[{\"itemName\":\"技术指导中心名称\",\"headerRow\":3,\"colIndex\":1,\"rowSpan\":1,\"colSpan\":1,\"isLeaf\":1,\"valueType\":\"text\",\"sortNum\":1}]")))
+    @Operation(summary = "覆盖保存模板表头",
+               description = "全量覆盖模板表头项列表。每个节点必须带 id（已有节点填真实 DB id，新增节点填前端临时字符串），" +
+                             "parentId 引用同批次某节点的 id。后端写前校验：无重复 id、无悬空 parentId、无环。")
     @PostMapping("/items/save/{templateId}")
     public R<Void> saveItems(@PathVariable Long templateId,
                              @org.springframework.web.bind.annotation.RequestBody List<TemplateItemRequest> items) {
         requireAdmin();
-        List<WrTemplateItem> entityItems = new ArrayList<>();
-        if (items != null) {
-            for (TemplateItemRequest ir : items) {
-                WrTemplateItem item = new WrTemplateItem();
-                BeanUtils.copyProperties(ir, item);
-                entityItems.add(item);
-            }
-        }
-        templateService.replaceItems(templateId, entityItems);
+        templateService.replaceItems(templateId, items);
         return R.ok();
     }
 
@@ -102,15 +91,7 @@ public class WrTemplateController {
         template.setTemplateName(req.getTemplateName());
         template.setDescription(req.getDescription());
 
-        List<WrTemplateItem> items = new ArrayList<>();
-        if (req.getItems() != null) {
-            for (TemplateItemRequest ir : req.getItems()) {
-                WrTemplateItem item = new WrTemplateItem();
-                BeanUtils.copyProperties(ir, item);
-                items.add(item);
-            }
-        }
-        return R.ok(templateService.add(template, items));
+        return R.ok(templateService.add(template, req.getItems()));
     }
 
     @Operation(summary = "修改模板基本信息")

@@ -2,6 +2,7 @@ package com.kxhospital.wreport.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.kxhospital.wreport.config.MinioProperties;
@@ -12,9 +13,11 @@ import com.kxhospital.wreport.entity.WrTemplateRow;
 import com.kxhospital.wreport.mapper.WrTemplateItemMapper;
 import com.kxhospital.wreport.mapper.WrTemplateMapper;
 import com.kxhospital.wreport.mapper.WrTemplateRowMapper;
+import com.kxhospital.wreport.pojo.request.TemplateItemRequest;
 import com.kxhospital.wreport.pojo.response.TemplateDetailVO;
 import com.kxhospital.wreport.service.WrTemplateService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -82,14 +85,11 @@ public class WrTemplateServiceImpl implements WrTemplateService {
 
     @Override
     @Transactional
-    public Long add(WrTemplate template, List<WrTemplateItem> items) {
+    public Long add(WrTemplate template, List<TemplateItemRequest> requests) {
         template.setStatus(0);
         templateMapper.insert(template);
-        if (items != null) {
-            for (WrTemplateItem item : items) {
-                item.setTemplateId(template.getId());
-                itemMapper.insert(item);
-            }
+        if (requests != null && !requests.isEmpty()) {
+            insertItemsWithClientIdMapping(template.getId(), requests);
         }
         return template.getId();
     }
@@ -118,15 +118,84 @@ public class WrTemplateServiceImpl implements WrTemplateService {
 
     @Override
     @Transactional
-    public void replaceItems(Long templateId, List<WrTemplateItem> items) {
-        itemMapper.deleteByTemplateId(templateId);
-        if (items == null) {
-            return;
+    public void replaceItems(Long templateId, List<TemplateItemRequest> requests) {
+        if (requests == null) requests = Collections.emptyList();
+        validateItemRequests(requests);
+        itemMapper.physicalDeleteByTemplateId(templateId);
+        if (!requests.isEmpty()) {
+            insertItemsWithClientIdMapping(templateId, requests);
         }
-        for (WrTemplateItem item : items) {
-            item.setId(null);
+    }
+
+    /**
+     * 写前校验：
+     *   ① id 不重复且不为空
+     *   ② 所有 parentId 引用的 id 在本批次存在或为 null
+     *   ③ 无环（防止 A→B→A 之类的循环引用）
+     */
+    private void validateItemRequests(List<TemplateItemRequest> requests) {
+        Set<String> ids = new HashSet<>();
+        for (TemplateItemRequest r : requests) {
+            if (r.getId() == null || r.getId().trim().isEmpty()) {
+                throw new RuntimeException("每个节点必须带有 id 字段（可为已有 DB id 或前端临时 id）");
+            }
+            if (!ids.add(r.getId().trim())) {
+                throw new RuntimeException("id 重复: " + r.getId());
+            }
+        }
+        for (TemplateItemRequest r : requests) {
+            if (r.getParentId() != null && !ids.contains(r.getParentId().trim())) {
+                throw new RuntimeException("parentId 引用了不存在的 id: [" + r.getParentId()
+                        + "] (节点: " + r.getItemName() + ")");
+            }
+        }
+        // 环检测
+        Map<String, String> parentMap = new HashMap<>();
+        for (TemplateItemRequest r : requests) {
+            parentMap.put(r.getId().trim(),
+                    r.getParentId() != null ? r.getParentId().trim() : null);
+        }
+        for (String startId : ids) {
+            Set<String> visited = new HashSet<>();
+            String cur = startId;
+            while (cur != null) {
+                if (!visited.add(cur)) {
+                    throw new RuntimeException("检测到环形引用，节点 id: " + cur);
+                }
+                cur = parentMap.get(cur);
+            }
+        }
+    }
+
+    /**
+     * 两阶段 insert：
+     *   阶段1：为每个节点确定真实 DB id（纯数字 clientId → 复用；非纯数字 → 生成新 Snowflake）
+     *   阶段2：按阶段1的映射写入，parentId 通过映射表翻译为真实 Long id
+     */
+    private void insertItemsWithClientIdMapping(Long templateId, List<TemplateItemRequest> requests) {
+        // 阶段1：clientId → realId
+        Map<String, Long> clientToReal = new LinkedHashMap<>();
+        for (TemplateItemRequest r : requests) {
+            String cid = r.getId().trim();
+            Long realId;
+            try {
+                realId = Long.parseLong(cid);
+            } catch (NumberFormatException e) {
+                realId = IdWorker.getId();
+            }
+            clientToReal.put(cid, realId);
+        }
+        // 阶段2：insert
+        for (TemplateItemRequest r : requests) {
+            WrTemplateItem item = new WrTemplateItem();
+            BeanUtils.copyProperties(r, item);  // 复制 itemName/headerRow/colIndex 等同类型字段
+            item.setId(clientToReal.get(r.getId().trim()));
             item.setTemplateId(templateId);
             item.setDelFlag(0);
+            item.setParentId(r.getParentId() != null
+                    ? clientToReal.get(r.getParentId().trim())
+                    : null);
+            // dictCode 已由 BeanUtils 复制（String→String），无需额外处理
             itemMapper.insert(item);
         }
     }
