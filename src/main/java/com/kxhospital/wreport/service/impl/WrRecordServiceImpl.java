@@ -321,7 +321,7 @@ public class WrRecordServiceImpl implements WrRecordService {
     // ──────────────────────────────────────────────────────────────────────────
 
     @Override
-    public CrossViewVO crossView(Long taskId, List<Long> itemIds) {
+    public CrossViewVO crossView(Long taskId, List<Long> itemIds, List<Integer> rowIndexes) {
         WrTask task = taskMapper.selectById(taskId);
         if (task == null) throw new RuntimeException("任务不存在");
         Long templateId = task.getTemplateId();
@@ -395,7 +395,28 @@ public class WrRecordServiceImpl implements WrRecordService {
                     .collect(Collectors.toList());
             Set<Long> numberItemIds = numberItems.stream().map(WrTemplateItem::getId).collect(Collectors.toSet());
 
-            vo.setRows(allRows);
+            // rowIndexes 过滤：非空时只保留指定行，同时自动补入其祖先行保证树结构完整
+            List<WrTemplateRow> showRows;
+            if (rowIndexes != null && !rowIndexes.isEmpty()) {
+                Set<Integer> selected = new HashSet<>(rowIndexes);
+                // 向上补祖先行，保证前端能正确构建联动树
+                Map<Integer, WrTemplateRow> rowMap = allRows.stream()
+                        .collect(Collectors.toMap(WrTemplateRow::getRowIndex, r -> r));
+                Set<Integer> toShow = new HashSet<>(selected);
+                for (Integer ri : selected) {
+                    WrTemplateRow cur = rowMap.get(ri);
+                    while (cur != null && cur.getParentRowIndex() != null) {
+                        toShow.add(cur.getParentRowIndex());
+                        cur = rowMap.get(cur.getParentRowIndex());
+                    }
+                }
+                showRows = allRows.stream()
+                        .filter(r -> toShow.contains(r.getRowIndex()))
+                        .collect(Collectors.toList());
+            } else {
+                showRows = allRows;
+            }
+            vo.setRows(showRows);
             vo.setNumberItems(numberItems);
 
             // orgCols：每个机构一列
@@ -431,6 +452,14 @@ public class WrRecordServiceImpl implements WrRecordService {
                         matrixValues.add(mc);
                     }
                 }
+            }
+            // matrixValues 也按 showRows 过滤
+            if (rowIndexes != null && !rowIndexes.isEmpty()) {
+                Set<Integer> showRowIndexSet = showRows.stream()
+                        .map(WrTemplateRow::getRowIndex).collect(Collectors.toSet());
+                matrixValues = matrixValues.stream()
+                        .filter(mc -> showRowIndexSet.contains(mc.getRowIndex()))
+                        .collect(Collectors.toList());
             }
             vo.setMatrixValues(matrixValues);
             vo.setNumberValues(numberValues);

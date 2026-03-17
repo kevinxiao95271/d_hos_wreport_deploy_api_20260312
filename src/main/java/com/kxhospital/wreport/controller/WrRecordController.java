@@ -91,14 +91,14 @@ public class WrRecordController {
     }
 
     @Operation(summary = "跨机构横向视图（管理员）",
-               description = "标准模板：列=选中字段，行=各机构；矩阵模板：列=各机构，行=地理层级行。" +
-                             "itemIds 仅对标准模板生效（逗号分隔），不传则返回全部叶子列。")
+               description = "标准模板：itemIds 选列，行=各机构；矩阵模板：rowIndexes 选行，列=各机构。不传则返回全量。")
     @GetMapping("/admin/crossview")
     public R<CrossViewVO> crossView(
             @RequestParam Long taskId,
-            @RequestParam(required = false) List<Long> itemIds) {
+            @RequestParam(required = false) List<Long>    itemIds,
+            @RequestParam(required = false) List<Integer> rowIndexes) {
         requireAdmin();
-        return R.ok(recordService.crossView(taskId, itemIds));
+        return R.ok(recordService.crossView(taskId, itemIds, rowIndexes));
     }
 
     @Operation(summary = "上报详情（含数据值和附件）", description = "返回详情及 statusLabel")

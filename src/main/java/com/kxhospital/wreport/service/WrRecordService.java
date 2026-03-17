@@ -27,8 +27,9 @@ public interface WrRecordService {
 
     /**
      * 跨机构横向视图。
-     * @param taskId   任务ID
-     * @param itemIds  标准模板：选中展示的叶子列ID（null=全部）；矩阵模板忽略此参数
+     * @param taskId     任务ID
+     * @param itemIds    标准模板：选中展示的叶子列ID（null=全部）；矩阵模板忽略
+     * @param rowIndexes 矩阵模板：选中展示的地理行rowIndex（null=全部）；标准模板忽略
      */
-    CrossViewVO crossView(Long taskId, List<Long> itemIds);
+    CrossViewVO crossView(Long taskId, List<Long> itemIds, List<Integer> rowIndexes);
 }
