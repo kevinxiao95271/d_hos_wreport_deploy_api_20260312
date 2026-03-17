@@ -21,6 +21,12 @@ public class GlobalExceptionHandler {
         return R.fail(400, msg);
     }
 
+    @ExceptionHandler(BusinessException.class)
+    public R<Void> handleBusiness(BusinessException ex) {
+        log.warn("业务拦截 [{}]: {}", ex.getCode(), ex.getMessage());
+        return R.fail(ex.getCode(), ex.getMessage());
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public R<Void> handleRuntime(RuntimeException ex) {
         log.warn("业务异常: {}", ex.getMessage());

@@ -49,12 +49,15 @@ public class WrTaskController {
         return R.ok(taskService.activeList(u.getOrgId()));
     }
 
-    @Operation(summary = "查询任务范围（管理员）")
+    @Operation(summary = "查询任务范围（管理员）",
+               description = "返回该任务已分配机构列表。orgs 含机构名称与当前填报状态（recordStatus: null=未开始, 0=草稿, 1=已提交, 2=已审核, 3=已驳回）。" +
+                             "recordStatus>=1 的机构在前端应置灰 checkbox，提示[请先驳回后再移出]。")
     @GetMapping("/scope/{taskId}")
     public R<TaskScopeResponse> getScope(@PathVariable Long taskId) {
         requireAdmin();
         TaskScopeResponse resp = new TaskScopeResponse();
         resp.setTaskId(taskId);
+        resp.setOrgs(taskServiceImpl.getScopeWithStatus(taskId));
         resp.setOrgIds(taskServiceImpl.getScopeOrgIds(taskId));
         return R.ok(resp);
     }
