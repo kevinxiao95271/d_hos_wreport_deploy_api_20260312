@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
-
 import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import java.util.HashMap;
@@ -19,7 +18,10 @@ import java.util.Map;
 
 /**
  * 认证接口（白名单，无需 Token）
- * POST /api/auth/login
+ *
+ * 机构信息取链路：
+ *   sys_user.person_id → hr_person.person_id → hr_person.org_id → hr_organization.org_name
+ * 不直接使用 sys_user.org_id。
  */
 @Tag(name = "认证")
 @RestController
@@ -27,27 +29,24 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final SysUserMapper  sysUserMapper;
-    private final JwtService     jwtService;
+    private final SysUserMapper sysUserMapper;
+    private final JwtService    jwtService;
 
     private static final BCryptPasswordEncoder ENCODER = new BCryptPasswordEncoder();
 
-    /**
-     * 账号密码登录（明文密码，不需要验证码）
-     */
     @Operation(summary = "登录", description = "账号+明文密码，返回 JWT Token（无需验证码）")
     @PostMapping("/login")
     public R<?> login(@Valid @RequestBody LoginRequest req) {
-        // 1. 查用户
+        // 1. 查用户（同时通过 person_id → hr_person → hr_organization 取出 org_id / org_name）
         Map<String, Object> user = sysUserMapper.findByAccount(req.getAccount());
         if (user == null) {
-            return R.fail(401, "E1:user_not_found:" + req.getAccount());
+            return R.fail(401, "账号不存在或已禁用");
         }
 
         // 2. 校验密码（BCrypt）
         String storedHash = (String) user.get("password");
         if (storedHash == null || !ENCODER.matches(req.getPassword(), storedHash)) {
-            return R.fail(401, "E2:password_mismatch:hash=" + (storedHash != null ? storedHash.substring(0, 10) : "null"));
+            return R.fail(401, "密码错误");
         }
 
         // 3. 查角色
@@ -55,17 +54,13 @@ public class AuthController {
         String roleCode = sysUserMapper.findRoleCode(userId);
         if (roleCode == null) roleCode = "qcUser";
 
-        // 4. 查机构名（忽略失败）
-        Long orgId = toLong(user.get("org_id"));
-        String orgName = "";
-        if (orgId != null) {
-            try {
-                orgName = sysUserMapper.findOrgName(orgId);
-                if (orgName == null) orgName = "";
-            } catch (Exception ignored) {}
-        }
+        // 4. 取机构信息（来自 findByAccount JOIN 结果，无需再单独查询）
+        //    org_id  来自 hr_person.org_id
+        //    orgName 来自 hr_organization.org_name
+        Long   orgId   = toLong(user.get("org_id"));
+        String orgName = user.get("org_name") != null ? (String) user.get("org_name") : "";
 
-        // 5. 构建 LoginUser
+        // 5. 构建 LoginUser 并写入 JWT
         LoginUser loginUser = new LoginUser(
                 userId,
                 (String) user.get("account"),
@@ -75,10 +70,9 @@ public class AuthController {
                 roleCode
         );
 
-        // 6. 签发 Token
         String token = jwtService.generateToken(loginUser);
 
-        // 7. 返回
+        // 6. 返回（接口格式不变，前端无需调整）
         Map<String, Object> result = new HashMap<>();
         result.put("token",    "Bearer " + token);
         result.put("userId",   String.valueOf(loginUser.getUserId()));
@@ -92,52 +86,9 @@ public class AuthController {
 
     private Long toLong(Object val) {
         if (val == null) return null;
-        if (val instanceof Long)    return (Long) val;
-        if (val instanceof Number)  return ((Number) val).longValue();
+        if (val instanceof Long)   return (Long) val;
+        if (val instanceof Number) return ((Number) val).longValue();
         return Long.parseLong(val.toString());
-    }
-
-    /** 列出数据库所有表（调试用，不需要鉴权） */
-    @GetMapping("/tables")
-    public R<?> tables() {
-        try {
-            return R.ok(sysUserMapper.listTables());
-        } catch (Exception e) {
-            return R.fail(e.getMessage());
-        }
-    }
-
-    /** 查询 sys_user 列名（调试用）*/
-    @GetMapping("/user-columns")
-    public R<?> userColumns() {
-        try {
-            return R.ok(sysUserMapper.listUserColumns());
-        } catch (Exception e) {
-            return R.fail(e.getMessage());
-        }
-    }
-
-    /** 列出最近 20 个用户账号（调试用）*/
-    @GetMapping("/users")
-    public R<?> recentUsers() {
-        try {
-            return R.ok(sysUserMapper.listRecentUsers());
-        } catch (Exception e) {
-            return R.fail(e.getMessage());
-        }
-    }
-
-    /**
-     * 开发环境：重置三个测试账号密码
-     * wr_admin → Admin@2025, wr_org_a → OrgA@2025, wr_org_b → OrgB@2025
-     */
-    @PostMapping("/dev-reset-pwd")
-    public R<?> devResetPwd() {
-        BCryptPasswordEncoder enc = new BCryptPasswordEncoder();
-        sysUserMapper.updatePassword("wr_admin", enc.encode("Admin@2025"));
-        sysUserMapper.updatePassword("wr_org_a", enc.encode("OrgA@2025"));
-        sysUserMapper.updatePassword("wr_org_b", enc.encode("OrgB@2025"));
-        return R.ok("密码已重置: wr_admin=Admin@2025 / wr_org_a=OrgA@2025 / wr_org_b=OrgB@2025");
     }
 
     @Data

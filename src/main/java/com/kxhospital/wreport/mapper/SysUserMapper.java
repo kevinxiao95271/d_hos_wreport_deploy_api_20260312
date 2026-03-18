@@ -1,59 +1,42 @@
 package com.kxhospital.wreport.mapper;
 
-import org.apache.ibatis.annotations.*;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
-
-import java.util.List;
 import java.util.Map;
 
 /**
- * 查询已有的 sys_user / sys_role 表（只读，不改表结构）
- * Roses/Guns 7.x 实际列名:
- *   sys_user: user_id, account, password, real_name, org_id, status_flag(char), del_flag(char)
- *   sys_role:  role_id, role_code
- *   sys_user_role: user_id, role_id
+ * 查询 sys_user / sys_role 表（只读，不改表结构）。
+ *
+ * 机构信息取链路：
+ *   sys_user.person_id → hr_person.person_id → hr_person.org_id → hr_organization.org_name
+ * 不直接使用 sys_user.org_id，保持与人员档案表的一致性。
  */
 @Mapper
 public interface SysUserMapper {
 
-    @Select("SELECT user_id AS id, account, password, real_name, org_id " +
-            "FROM sys_user " +
-            "WHERE account = #{account} " +
-            "  AND del_flag = 'N' " +
-            "  AND status_flag = 1 " +
+    /**
+     * 按账号查登录用户，同时通过 person_id → hr_person → hr_organization
+     * 取出 org_id 和 org_name，一次查询完成，避免多次往返。
+     */
+    @Select("SELECT u.user_id AS id, u.account, u.password, u.real_name, u.person_id, " +
+            "       p.org_id, o.org_name " +
+            "FROM sys_user u " +
+            "LEFT JOIN hr_person p ON p.person_id = u.person_id AND p.del_flag = 'N' " +
+            "LEFT JOIN hr_organization o ON o.org_id = p.org_id " +
+            "WHERE u.account = #{account} " +
+            "  AND u.del_flag = 'N' " +
+            "  AND u.status_flag = 1 " +
             "LIMIT 1")
     Map<String, Object> findByAccount(@Param("account") String account);
 
+    /**
+     * 查用户角色码，用于登录后写入 JWT。
+     */
     @Select("SELECT r.role_code FROM sys_user_role ur " +
             "JOIN sys_role r ON r.role_id = ur.role_id " +
             "WHERE ur.user_id = #{userId} " +
             "LIMIT 1")
     String findRoleCode(@Param("userId") Long userId);
-
-    /**
-     * 查机构名：sys_user.org_id -> hr_organization.org_id -> org_name
-     */
-    @Select("SELECT org_name FROM hr_organization WHERE org_id = #{orgId} LIMIT 1")
-    String findOrgName(@Param("orgId") Long orgId);
-
-    // ---- 调试接口 ----
-    @Select("SELECT tablename FROM pg_tables WHERE schemaname = current_schema() ORDER BY tablename")
-    List<String> listTables();
-
-    @Select("SELECT column_name FROM information_schema.columns " +
-            "WHERE table_schema = current_schema() AND table_name = 'sys_user' " +
-            "ORDER BY ordinal_position")
-    List<String> listUserColumns();
-
-    @Update("UPDATE sys_user SET password = #{password} WHERE account = #{account}")
-    void updatePassword(@Param("account") String account, @Param("password") String password);
-
-    @Select("SELECT u.user_id AS \"userId\", u.account, " +
-            "       u.real_name AS \"realName\", u.org_id AS \"orgId\", " +
-            "       ho.org_name AS \"orgName\", u.status_flag AS \"statusFlag\" " +
-            "FROM sys_user u " +
-            "LEFT JOIN hr_organization ho ON ho.org_id = u.org_id " +
-            "WHERE u.del_flag = 'N' " +
-            "ORDER BY u.create_time DESC LIMIT 20")
-    List<Map<String, Object>> listRecentUsers();
 }
