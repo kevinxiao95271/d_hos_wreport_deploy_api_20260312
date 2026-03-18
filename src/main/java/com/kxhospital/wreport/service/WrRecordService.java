@@ -13,6 +13,7 @@ import com.kxhospital.wreport.pojo.response.RecordDetailVO;
 
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
+import java.util.Map;
 
 public interface WrRecordService {
     Long saveOrUpdate(RecordSaveRequest req, LoginUser user);
@@ -24,6 +25,12 @@ public interface WrRecordService {
     void audit(RecordAuditRequest req, LoginUser user);
     void exportExcel(Long taskId, HttpServletResponse response);
     RecordAggregateResponse aggregate(Long taskId);
+
+    /**
+     * 实时字数统计，供前端显示进度条。
+     * 返回 currentChars / maxTotalChars / enabled 三个字段。
+     */
+    Map<String, Object> charCount(Long recordId, LoginUser user);
 
     /**
      * 跨机构横向视图。

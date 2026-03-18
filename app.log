@@ -1,0 +1,242 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::               (v2.7.18)
+
+2026-03-13 09:02:10.196  INFO 16140 --- [           main] com.kxhospital.wreport.WrApplication     : Starting WrApplication using Java 1.8.0_191 on DESKTOP-BIJ5RL0 with PID 16140 (D:\AiCode\cursor\d_hos_wreport_deploy_api_20260312\target\hos-wreport-api-1.0.0.jar started by kevinxiao in D:\AiCode\cursor\d_hos_wreport_deploy_api_20260312)
+2026-03-13 09:02:10.201 DEBUG 16140 --- [           main] com.kxhospital.wreport.WrApplication     : Running with Spring Boot v2.7.18, Spring v5.3.31
+2026-03-13 09:02:10.202  INFO 16140 --- [           main] com.kxhospital.wreport.WrApplication     : No active profile set, falling back to 1 default profile: "default"
+2026-03-13 09:02:10.907  INFO 16140 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-03-13 09:02:10.913  INFO 16140 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-03-13 09:02:10.933  INFO 16140 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 8 ms. Found 0 Redis repository interfaces.
+2026-03-13 09:02:11.978  INFO 16140 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8083 (http)
+2026-03-13 09:02:11.996  INFO 16140 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-13 09:02:11.997  INFO 16140 --- [           main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.83]
+2026-03-13 09:02:12.119  INFO 16140 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-03-13 09:02:12.121  INFO 16140 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 1868 ms
+2026-03-13 09:02:12.211 DEBUG 16140 --- [           main] com.kxhospital.wreport.config.JwtFilter  : Filter 'jwtFilter' configured for use
+2026-03-13 09:02:12.257  INFO 16140 --- [           main] c.a.d.s.b.a.DruidDataSourceAutoConfigure : Init DruidDataSource
+2026-03-13 09:02:14.885  INFO 16140 --- [           main] com.alibaba.druid.pool.DruidDataSource   : {dataSource-1} inited
+Logging initialized using 'class org.apache.ibatis.logging.stdout.StdOutImpl' adapter.
+Initialization Sequence datacenterId:0 workerId:24
+ _ _   |_  _ _|_. ___ _ |    _ 
+| | |\/|_)(_| | |_\  |_)||_|_\ 
+     /               |         
+                        3.5.5 
+2026-03-13 09:02:17.613  INFO 16140 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8083 (http) with context path ''
+2026-03-13 09:02:17.634  INFO 16140 --- [           main] com.kxhospital.wreport.WrApplication     : Started WrApplication in 7.777 seconds (JVM running for 8.136)
+2026-03-13 09:02:18.316  INFO 16140 --- [           main] c.k.wreport.config.DatabaseInitializer   : [DB] DDL init done, executed 23 statements
+2026-03-13 09:02:18.318  INFO 16140 --- [           main] c.k.wreport.config.MinioInitializer      : [MinIO] 初始化桶: wk-registration-files, wk-system-templates
+2026-03-13 09:02:44.430  INFO 16140 --- [nio-8083-exec-3] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-03-13 09:02:44.435  INFO 16140 --- [nio-8083-exec-3] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-03-13 09:02:44.435  INFO 16140 --- [nio-8083-exec-3] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@4c4df36] was not registered for synchronization because synchronization is not active
+JDBC Connection [com.alibaba.druid.pool.DruidStatementConnection@1b37f827] will not be managed by Spring
+==>  Preparing: UPDATE sys_user SET password = ? WHERE account = ?
+==> Parameters: $2a$10$BOGqOvadsNWkmT.X02PIeOunxVQK.vcLdM7SwTLpHbhsoP10Fedbe(String), wr_admin(String)
+<==    Updates: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@4c4df36]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@571109b7] was not registered for synchronization because synchronization is not active
+JDBC Connection [com.alibaba.druid.pool.DruidStatementConnection@1b37f827] will not be managed by Spring
+==>  Preparing: UPDATE sys_user SET password = ? WHERE account = ?
+==> Parameters: $2a$10$c.dZAERNKnMv6zl1hW6AF.f1PgkxC81cQFW6Id5AggM5guxLM1fdS(String), wr_org_a(String)
+<==    Updates: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@571109b7]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@add4758] was not registered for synchronization because synchronization is not active
+JDBC Connection [com.alibaba.druid.pool.DruidStatementConnection@1b37f827] will not be managed by Spring
+==>  Preparing: UPDATE sys_user SET password = ? WHERE account = ?
+==> Parameters: $2a$10$rlGmNT8iYbivCx5NojMSmOO/h3Qn3A7CXIpFFOi.u5ReLtHLxEGv2(String), wr_org_b(String)
+<==    Updates: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@add4758]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5f5bb921] was not registered for synchronization because synchronization is not active
+JDBC Connection [com.alibaba.druid.pool.DruidStatementConnection@1b37f827] will not be managed by Spring
+==>  Preparing: SELECT user_id AS id, account, password, real_name, org_id FROM sys_user WHERE account = ? AND del_flag = 'N' AND status_flag = 1 LIMIT 1
+==> Parameters: wr_org_b(String)
+<==    Columns: id, account, password, real_name, org_id
+<==        Row: 177330561216333108, wr_org_b, $2a$10$rlGmNT8iYbivCx5NojMSmOO/h3Qn3A7CXIpFFOi.u5ReLtHLxEGv2, 产科医疗质控中心, 7437930041691865107
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@5f5bb921]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@31043441] was not registered for synchronization because synchronization is not active
+JDBC Connection [com.alibaba.druid.pool.DruidStatementConnection@1b37f827] will not be managed by Spring
+==>  Preparing: SELECT r.role_code FROM sys_user_role ur JOIN sys_role r ON r.role_id = ur.role_id WHERE ur.user_id = ? LIMIT 1
+==> Parameters: 177330561216333108(Long)
+<==    Columns: role_code
+<==        Row: qcUser
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@31043441]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3fb0aa19] was not registered for synchronization because synchronization is not active
+JDBC Connection [com.alibaba.druid.pool.DruidStatementConnection@1b37f827] will not be managed by Spring
+==>  Preparing: SELECT org_name FROM hr_organization WHERE org_id = ? LIMIT 1
+==> Parameters: 7437930041691865107(Long)
+<==    Columns: org_name
+<==        Row: 产科医疗质控中心
+<==      Total: 1
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@3fb0aa19]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@72aede87] was not registered for synchronization because synchronization is not active
+JDBC Connection [com.alibaba.druid.pool.DruidStatementConnection@1b37f827] will not be managed by Spring
+==>  Preparing: SELECT * FROM wr_template_item WHERE template_id = ? AND del_flag = 0 ORDER BY header_row, col_index
+==> Parameters: 2000000000000002(Long)
+<==    Columns: id, template_id, parent_id, item_name, header_row, col_index, row_span, col_span, is_leaf, value_type, unit, placeholder, require_attachment, format_template_file_id, format_template_url, format_template_name, sort_num, create_user, create_time, update_user, update_time, del_flag
+<==        Row: 7437947564403462218, 2000000000000002, null, 防盲技术指导中心, 1, 1, 1, 1, 1, checkbox, null, null, 0, null, null, null, 1, null, null, null, null, 0
+<==        Row: 7437947564525097035, 2000000000000002, null, 医院管理技术指导中心, 1, 2, 1, 1, 1, checkbox, null, null, 0, null, null, null, 2, null, null, null, null, 0
+<==        Row: 7437947564676091980, 2000000000000002, null, 核医学技术指导中心, 1, 3, 1, 1, 1, checkbox, null, null, 0, null, null, null, 3, null, null, null, null, 0
+<==        Row: 7437947564810309709, 2000000000000002, null, 烧伤救治技术指导中心, 1, 4, 1, 1, 1, checkbox, null, null, 0, null, null, null, 4, null, null, null, null, 0
+<==        Row: 7437947564931944526, 2000000000000002, null, 中毒急救技术指导中心, 1, 5, 1, 1, 1, checkbox, null, null, 0, null, null, null, 5, null, null, null, null, 0
+<==        Row: 7437947565061967951, 2000000000000002, null, 临床营养技术指导中心, 1, 6, 1, 1, 1, checkbox, null, null, 0, null, null, null, 6, null, null, null, null, 0
+<==        Row: 7437947565183602768, 2000000000000002, null, 人工肝技术指导中心, 1, 7, 1, 1, 1, checkbox, null, null, 0, null, null, null, 7, null, null, null, null, 0
+<==        Row: 7437947565309431889, 2000000000000002, null, 病理尸体技术指导中心, 1, 8, 1, 1, 1, checkbox, null, null, 0, null, null, null, 8, null, null, null, null, 0
+<==        Row: 7437947565435261010, 2000000000000002, null, 皮肤病临床诊治技术指导中心, 1, 9, 1, 1, 1, checkbox, null, null, 0, null, null, null, 9, null, null, null, null, 0
+<==        Row: 7437947565577867347, 2000000000000002, null, 医院图书管理技术指导中心, 1, 10, 1, 1, 1, checkbox, null, null, 0, null, null, null, 10, null, null, null, null, 0
+<==        Row: 7437947565699502164, 2000000000000002, null, 细菌耐药技术指导中心, 1, 11, 1, 1, 1, checkbox, null, null, 0, null, null, null, 11, null, null, null, null, 0
+<==        Row: 7437947565821136981, 2000000000000002, null, 结直肠技术指导中心, 1, 12, 1, 1, 1, checkbox, null, null, 0, null, null, null, 12, null, null, null, null, 0
+<==        Row: 7437947565942771798, 2000000000000002, null, 神经外科技术指导中心, 1, 13, 1, 1, 1, checkbox, null, null, 0, null, null, null, 13, null, null, null, null, 0
+<==        Row: 7437947566060212311, 2000000000000002, null, 骨科技术指导中心, 1, 14, 1, 1, 1, checkbox, null, null, 0, null, null, null, 14, null, null, null, null, 0
+<==        Row: 7437947566181847128, 2000000000000002, null, 口腔正畸技术指导中心, 1, 15, 1, 1, 1, checkbox, null, null, 0, null, null, null, 15, null, null, null, null, 0
+<==        Row: 7437947566311870553, 2000000000000002, null, 分娩镇痛技术指导中心, 1, 16, 1, 1, 1, checkbox, null, null, 0, null, null, null, 16, null, null, null, null, 0
+<==        Row: 7437947566433505370, 2000000000000002, null, 全科医学技术指导中心, 1, 17, 1, 1, 1, checkbox, null, null, 0, null, null, null, 17, null, null, null, null, 0
+<==        Row: 7437947566601277531, 2000000000000002, null, 甲状腺诊治技术指导中心, 1, 18, 1, 1, 1, checkbox, null, null, 0, null, null, null, 18, null, null, null, null, 0
+<==        Row: 7437947566718718044, 2000000000000002, null, 老年病技术指导中心, 1, 19, 1, 1, 1, checkbox, null, null, 0, null, null, null, 19, null, null, null, null, 0
+<==        Row: 7437947566852935773, 2000000000000002, null, 日间手术技术指导中心, 1, 20, 1, 1, 1, checkbox, null, null, 0, null, null, null, 20, null, null, null, null, 0
+<==        Row: 7437947566970376286, 2000000000000002, null, 口腔种植技术指导中心, 1, 21, 1, 1, 1, checkbox, null, null, 0, null, null, null, 21, null, null, null, null, 0
+<==        Row: 7437947567112982623, 2000000000000002, null, 生殖微创技术指导中心, 1, 22, 1, 1, 1, checkbox, null, null, 0, null, null, null, 22, null, null, null, null, 0
+<==        Row: 7437947567263977568, 2000000000000002, null, 角膜病诊治技术指导中心, 1, 23, 1, 1, 1, checkbox, null, null, 0, null, null, null, 23, null, null, null, null, 0
+<==        Row: 7437947567389806689, 2000000000000002, null, 肿瘤靶向技术指导中心, 1, 24, 1, 1, 1, checkbox, null, null, 0, null, null, null, 24, null, null, null, null, 0
+<==        Row: 7437947567519830114, 2000000000000002, null, 胎儿心超技术指导中心, 1, 25, 1, 1, 1, checkbox, null, null, 0, null, null, null, 25, null, null, null, null, 0
+<==        Row: 7437947567641464931, 2000000000000002, null, 呼吸疾病技术指导中心, 1, 26, 1, 1, 1, checkbox, null, null, 0, null, null, null, 26, null, null, null, null, 0
+<==      Total: 26
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@72aede87]
+Creating a new SqlSession
+SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@78b8f98] was not registered for synchronization because synchronization is not active
+JDBC Connection [com.alibaba.druid.pool.DruidStatementConnection@1b37f827] will not be managed by Spring
+==>  Preparing: SELECT * FROM wr_template_row WHERE template_id = ? AND del_flag = 0 ORDER BY sort_num, row_index
+==> Parameters: 2000000000000002(Long)
+<==    Columns: id, template_id, row_index, row_label, row_level, parent_row_index, sort_num, create_user, create_time, update_user, update_time, del_flag
+<==        Row: 7437947567817625700, 2000000000000002, 1, 省市县全部成立, 1, null, 0, null, null, null, null, 0
+<==        Row: 7437947567951843429, 2000000000000002, 2, 市级全部成立, 1, null, 1, null, null, null, null, 0
+<==        Row: 7437947568073478246, 2000000000000002, 3, 市级成立个数, 1, null, 2, null, null, null, null, 0
+<==        Row: 7437947568190918759, 2000000000000002, 4, 杭州市级, 2, null, 3, null, null, null, null, 0
+<==        Row: 7437947568308359272, 2000000000000002, 5, 宁波市级, 2, null, 4, null, null, null, null, 0
+<==        Row: 7437947568429994089, 2000000000000002, 6, 温州市级, 2, null, 5, null, null, null, null, 0
+<==        Row: 7437947568547434602, 2000000000000002, 7, 湖州市级, 2, null, 6, null, null, null, null, 0
+<==        Row: 7437947568673263723, 2000000000000002, 8, 嘉兴市级, 2, null, 7, null, null, null, null, 0
+<==        Row: 7437947568853618796, 2000000000000002, 9, 绍兴市级, 2, null, 8, null, null, null, null, 0
+<==        Row: 7437947568971059309, 2000000000000002, 10, 金华市级, 2, null, 9, null, null, null, null, 0
+<==        Row: 7437947569092694126, 2000000000000002, 11, 衢州市级, 2, null, 10, null, null, null, null, 0
+<==        Row: 7437947569210134639, 2000000000000002, 12, 舟山市级, 2, null, 11, null, null, null, null, 0
+<==        Row: 7437947569327575152, 2000000000000002, 13, 台州市级, 2, null, 12, null, null, null, null, 0
+<==        Row: 7437947569445015665, 2000000000000002, 14, 丽水市级, 2, null, 13, null, null, null, null, 0
+<==        Row: 7437947569566650482, 2000000000000002, 15, 县级成立个数, 1, null, 14, null, null, null, null, 0
+<==        Row: 7437947569684090995, 2000000000000002, 16, 杭州市, 2, null, 15, null, null, null, null, 0
+<==        Row: 7437947569809920116, 2000000000000002, 17, 上城区, 3, 16, 16, null, null, null, null, 0
+<==        Row: 7437947569927360629, 2000000000000002, 18, 拱墅区, 3, 16, 17, null, null, null, null, 0
+<==        Row: 7437947570048995446, 2000000000000002, 19, 西湖区, 3, 16, 18, null, null, null, null, 0
+<==        Row: 7437947570183213175, 2000000000000002, 20, 滨江区, 3, 16, 19, null, null, null, null, 0
+<==        Row: 7437947570304847992, 2000000000000002, 21, 萧山区, 3, 16, 20, null, null, null, null, 0
+<==        Row: 7437947570422288505, 2000000000000002, 22, 余杭区, 3, 16, 21, null, null, null, null, 0
+<==        Row: 7437947570539729018, 2000000000000002, 23, 临平区, 3, 16, 22, null, null, null, null, 0
+<==        Row: 7437947570661363835, 2000000000000002, 24, 钱塘区, 3, 16, 23, null, null, null, null, 0
+<==        Row: 7437947570778804348, 2000000000000002, 25, 富阳区, 3, 16, 24, null, null, null, null, 0
+<==        Row: 7437947570904633469, 2000000000000002, 26, 临安区, 3, 16, 25, null, null, null, null, 0
+<==        Row: 7437947571038851198, 2000000000000002, 27, 桐庐区, 3, 16, 26, null, null, null, null, 0
+<==        Row: 7437947571156291711, 2000000000000002, 28, 淳安县, 3, 16, 27, null, null, null, null, 0
+<==        Row: 7437947571277926528, 2000000000000002, 29, 建德市, 3, 16, 28, null, null, null, null, 0
+<==        Row: 7437947571399561345, 2000000000000002, 30, 宁波市, 2, null, 29, null, null, null, null, 0
+<==        Row: 7437947571517001858, 2000000000000002, 31, 海曙区, 3, 30, 30, null, null, null, null, 0
+<==        Row: 7437947571647025283, 2000000000000002, 32, 江北区, 3, 30, 31, null, null, null, null, 0
+<==        Row: 7437947571764465796, 2000000000000002, 33, 镇海区, 3, 30, 32, null, null, null, null, 0
+<==        Row: 7437947571898683525, 2000000000000002, 34, 北仑区, 3, 30, 33, null, null, null, null, 0
+<==        Row: 7437947572016124038, 2000000000000002, 35, 鄞州区, 3, 30, 34, null, null, null, null, 0
+<==        Row: 7437947572133564551, 2000000000000002, 36, 奉化区, 3, 30, 35, null, null, null, null, 0
+<==        Row: 7437947572251005064, 2000000000000002, 37, 余姚市, 3, 30, 36, null, null, null, null, 0
+<==        Row: 7437947572368445577, 2000000000000002, 38, 慈溪市, 3, 30, 37, null, null, null, null, 0
+<==        Row: 7437947572485886090, 2000000000000002, 39, 宁海县, 3, 30, 38, null, null, null, null, 0
+<==        Row: 7437947572607520907, 2000000000000002, 40, 象山县, 3, 30, 39, null, null, null, null, 0
+<==        Row: 7437947572724961420, 2000000000000002, 41, 温州市, 2, null, 40, null, null, null, null, 0
+<==        Row: 7437947572846596237, 2000000000000002, 42, 鹿城区, 3, 41, 41, null, null, null, null, 0
+<==        Row: 7437947572968231054, 2000000000000002, 43, 龙湾区, 3, 41, 42, null, null, null, null, 0
+<==        Row: 7437947573094060175, 2000000000000002, 44, 瓯海区, 3, 41, 43, null, null, null, null, 0
+<==        Row: 7437947573215694992, 2000000000000002, 45, 洞头区, 3, 41, 44, null, null, null, null, 0
+<==        Row: 7437947573333135505, 2000000000000002, 46, 乐清市, 3, 41, 45, null, null, null, null, 0
+<==        Row: 7437947573450576018, 2000000000000002, 47, 瑞安市, 3, 41, 46, null, null, null, null, 0
+<==        Row: 7437947573563822227, 2000000000000002, 48, 永嘉县, 3, 41, 47, null, null, null, null, 0
+<==        Row: 7437947573685457044, 2000000000000002, 49, 文成县, 3, 41, 48, null, null, null, null, 0
+<==        Row: 7437947573802897557, 2000000000000002, 50, 平阳县, 3, 41, 49, null, null, null, null, 0
+<==        Row: 7437947573924532374, 2000000000000002, 51, 泰顺县, 3, 41, 50, null, null, null, null, 0
+<==        Row: 7437947574046167191, 2000000000000002, 52, 苍南县, 3, 41, 51, null, null, null, null, 0
+<==        Row: 7437947574163607704, 2000000000000002, 53, 龙港市, 3, 41, 52, null, null, null, null, 0
+<==        Row: 7437947574281048217, 2000000000000002, 54, 湖州市, 2, null, 53, null, null, null, null, 0
+<==        Row: 7437947574398488730, 2000000000000002, 55, 吴兴区, 3, 54, 54, null, null, null, null, 0
+<==        Row: 7437947574515929243, 2000000000000002, 56, 南浔区, 3, 54, 55, null, null, null, null, 0
+<==        Row: 7437947574637564060, 2000000000000002, 57, 德清县, 3, 54, 56, null, null, null, null, 0
+<==        Row: 7437947574755004573, 2000000000000002, 58, 长兴县, 3, 54, 57, null, null, null, null, 0
+<==        Row: 7437947574876639390, 2000000000000002, 59, 安吉县, 3, 54, 58, null, null, null, null, 0
+<==        Row: 7437947575002468511, 2000000000000002, 60, 嘉兴市, 2, null, 59, null, null, null, null, 0
+<==        Row: 7437947575119909024, 2000000000000002, 61, 南湖区, 3, 60, 60, null, null, null, null, 0
+<==        Row: 7437947575241543841, 2000000000000002, 62, 秀洲区, 3, 60, 61, null, null, null, null, 0
+<==        Row: 7437947575371567266, 2000000000000002, 63, 嘉善县, 3, 60, 62, null, null, null, null, 0
+<==        Row: 7437947575493202083, 2000000000000002, 64, 平湖市, 3, 60, 63, null, null, null, null, 0
+<==        Row: 7437947575635808420, 2000000000000002, 65, 海盐县, 3, 60, 64, null, null, null, null, 0
+<==        Row: 7437947575761637541, 2000000000000002, 66, 海宁市, 3, 60, 65, null, null, null, null, 0
+<==        Row: 7437947575883272358, 2000000000000002, 67, 桐乡市, 3, 60, 66, null, null, null, null, 0
+<==        Row: 7437947576000712871, 2000000000000002, 68, 绍兴市, 2, null, 67, null, null, null, null, 0
+<==        Row: 7437947576122347688, 2000000000000002, 69, 越城区, 3, 68, 68, null, null, null, null, 0
+<==        Row: 7437947576239788201, 2000000000000002, 70, 柯桥区, 3, 68, 69, null, null, null, null, 0
+<==        Row: 7437947576357228714, 2000000000000002, 71, 上虞区, 3, 68, 70, null, null, null, null, 0
+<==        Row: 7437947576478863531, 2000000000000002, 72, 诸暨市, 3, 68, 71, null, null, null, null, 0
+<==        Row: 7437947576634052780, 2000000000000002, 73, 嵊州市, 3, 68, 72, null, null, null, null, 0
+<==        Row: 7437947576751493293, 2000000000000002, 74, 新昌县, 3, 68, 73, null, null, null, null, 0
+<==        Row: 7437947576877322414, 2000000000000002, 75, 金华市, 2, null, 74, null, null, null, null, 0
+<==        Row: 7437947576994762927, 2000000000000002, 76, 婺城区, 3, 75, 75, null, null, null, null, 0
+<==        Row: 7437947577112203440, 2000000000000002, 77, 金东区, 3, 75, 76, null, null, null, null, 0
+<==        Row: 7437947577229643953, 2000000000000002, 78, 兰溪市, 3, 75, 77, null, null, null, null, 0
+<==        Row: 7437947577347084466, 2000000000000002, 79, 东阳市, 3, 75, 78, null, null, null, null, 0
+<==        Row: 7437947577477107891, 2000000000000002, 80, 义乌市, 3, 75, 79, null, null, null, null, 0
+<==        Row: 7437947577594548404, 2000000000000002, 81, 永康市, 3, 75, 80, null, null, null, null, 0
+<==        Row: 7437947577711988917, 2000000000000002, 82, 浦江县, 3, 75, 81, null, null, null, null, 0
+<==        Row: 7437947577829429430, 2000000000000002, 83, 武义县, 3, 75, 82, null, null, null, null, 0
+<==        Row: 7437947577955258551, 2000000000000002, 84, 磐安县, 3, 75, 83, null, null, null, null, 0
+<==        Row: 7437947578076893368, 2000000000000002, 85, 衢州市, 2, null, 84, null, null, null, null, 0
+<==        Row: 7437947578194333881, 2000000000000002, 86, 柯城区, 3, 85, 85, null, null, null, null, 0
+<==        Row: 7437947578320163002, 2000000000000002, 87, 衢江区, 3, 85, 86, null, null, null, null, 0
+<==        Row: 7437947578458575035, 2000000000000002, 88, 龙游县, 3, 85, 87, null, null, null, null, 0
+<==        Row: 7437947578588598460, 2000000000000002, 89, 江山市, 3, 85, 88, null, null, null, null, 0
+<==        Row: 7437947578706038973, 2000000000000002, 90, 常山县, 3, 85, 89, null, null, null, null, 0
+<==        Row: 7437947578823479486, 2000000000000002, 91, 开化县, 3, 85, 90, null, null, null, null, 0
+<==        Row: 7437947578945114303, 2000000000000002, 92, 舟山市, 2, null, 91, null, null, null, null, 0
+<==        Row: 7437947579070943424, 2000000000000002, 93, 定海区, 3, 92, 92, null, null, null, null, 0
+<==        Row: 7437947579200966849, 2000000000000002, 94, 普陀区, 3, 92, 93, null, null, null, null, 0
+<==        Row: 7437947579322601666, 2000000000000002, 95, 岱山县, 3, 92, 94, null, null, null, null, 0
+<==        Row: 7437947579440042179, 2000000000000002, 96, 嵊泗县, 3, 92, 95, null, null, null, null, 0
+<==        Row: 7437947579557482692, 2000000000000002, 97, 台州市, 2, null, 96, null, null, null, null, 0
+<==        Row: 7437947579674923205, 2000000000000002, 98, 椒江区, 3, 97, 97, null, null, null, null, 0
+<==        Row: 7437947579792363718, 2000000000000002, 99, 黄岩区, 3, 97, 98, null, null, null, null, 0
+<==        Row: 7437947579913998535, 2000000000000002, 100, 路桥区, 3, 97, 99, null, null, null, null, 0
+<==        Row: 7437947580169851080, 2000000000000002, 101, 临海市, 3, 97, 100, null, null, null, null, 0
+<==        Row: 7437947580287291593, 2000000000000002, 102, 温岭市, 3, 97, 101, null, null, null, null, 0
+<==        Row: 7437947580408926410, 2000000000000002, 103, 玉环市, 3, 97, 102, null, null, null, null, 0
+<==        Row: 7437947580530561227, 2000000000000002, 104, 天台县, 3, 97, 103, null, null, null, null, 0
+<==        Row: 7437947580652196044, 2000000000000002, 105, 仙居县, 3, 97, 104, null, null, null, null, 0
+<==        Row: 7437947580773830861, 2000000000000002, 106, 三门县, 3, 97, 105, null, null, null, null, 0
+<==        Row: 7437947580895465678, 2000000000000002, 107, 丽水市, 2, null, 106, null, null, null, null, 0
+<==        Row: 7437947581033877711, 2000000000000002, 108, 莲都区, 3, 107, 107, null, null, null, null, 0
+<==        Row: 7437947581151318224, 2000000000000002, 109, 龙泉市, 3, 107, 108, null, null, null, null, 0
+<==        Row: 7437947581272953041, 2000000000000002, 110, 青田县, 3, 107, 109, null, null, null, null, 0
+<==        Row: 7437947581398782162, 2000000000000002, 111, 云和县, 3, 107, 110, null, null, null, null, 0
+<==        Row: 7437947581516222675, 2000000000000002, 112, 庆元县, 3, 107, 111, null, null, null, null, 0
+<==        Row: 7437947581637857492, 2000000000000002, 113, 缙云县, 3, 107, 112, null, null, null, null, 0
+<==        Row: 7437947581759492309, 2000000000000002, 114, 遂昌县, 3, 107, 113, null, null, null, null, 0
+<==        Row: 7437947581889515734, 2000000000000002, 115, 松阳县, 3, 107, 114, null, null, null, null, 0
+<==        Row: 7437947582006956247, 2000000000000002, 116, 景宁县, 3, 107, 115, null, null, null, null, 0
+<==      Total: 116
+Closing non transactional SqlSession [org.apache.ibatis.session.defaults.DefaultSqlSession@78b8f98]

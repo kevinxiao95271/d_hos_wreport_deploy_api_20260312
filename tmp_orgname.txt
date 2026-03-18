@@ -1,0 +1,7 @@
+account=wr_org_b
+orgName=产科医疗质控中心
+repr='产科医疗质控中心'
+len=8
+
+--- contains check ---
+done

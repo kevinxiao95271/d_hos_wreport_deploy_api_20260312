@@ -13,6 +13,7 @@ import com.kxhospital.wreport.pojo.response.AttachmentVO;
 import com.kxhospital.wreport.pojo.response.CrossViewVO;
 import com.kxhospital.wreport.pojo.response.RecordAggregateResponse;
 import com.kxhospital.wreport.pojo.response.RecordDetailVO;
+import com.kxhospital.wreport.common.BusinessException;
 import com.kxhospital.wreport.service.WrAttachmentService;
 import com.kxhospital.wreport.service.WrRecordService;
 import com.kxhospital.wreport.service.WrTemplateService;
@@ -43,6 +44,7 @@ public class WrRecordServiceImpl implements WrRecordService {
     private final WrAttachmentService   attachmentService;
     private final WrAttachmentMapper    attachmentMapper;
     private final WrTemplateService     templateService;
+    private final WrTemplateMapper      templateMapper;
     private final WrDictMapper          dictMapper;
     private final WrTaskOrgScopeMapper  taskOrgScopeMapper;
 
@@ -114,10 +116,51 @@ public class WrRecordServiceImpl implements WrRecordService {
             }
         }
 
+        // ---- 总字数上限校验 ----
+        // max_total_chars > 0 时功能启用；= 0 / null 时跳过（不限制）。
+        // 统计该 record 下所有 wr_record_value.cell_value 的字符总数（NULL 值不计入）。
+        // 超出则返回错误码 4032，前端据此提示"字数超限"。
+        WrTemplate tpl = templateMapper.selectById(record.getTemplateId());
+        if (tpl != null && tpl.getMaxTotalChars() != null && tpl.getMaxTotalChars() > 0) {
+            long totalChars = valueMapper.sumCharCount(record.getId());
+            if (totalChars > tpl.getMaxTotalChars()) {
+                throw new BusinessException(4032,
+                        "填报总字数 " + totalChars + " 已超出模板限制 " + tpl.getMaxTotalChars() + " 字，请精简后重新提交");
+            }
+        }
+
         record.setStatus(1);
         record.setSubmitUser(user.getUserId());
         record.setSubmitTime(now);
         recordMapper.updateById(record);
+    }
+
+    /**
+     * 查询单份填报当前已填字符总数，供前端实时显示进度条使用。
+     * <p>返回内容：</p>
+     * <ul>
+     *   <li>currentChars   — 当前已填字符数（SUM LENGTH(cell_value)）</li>
+     *   <li>maxTotalChars  — 模板设定上限（0 = 不限制）</li>
+     *   <li>enabled        — maxTotalChars > 0 时为 true，前端据此决定是否显示进度条</li>
+     * </ul>
+     */
+    @Override
+    public Map<String, Object> charCount(Long recordId, LoginUser user) {
+        WrRecord record = recordMapper.selectById(recordId);
+        if (record == null) throw new RuntimeException("上报记录不存在");
+        if (!record.getOrgId().equals(user.getOrgId())) throw new RuntimeException("无权查询");
+
+        long current = valueMapper.sumCharCount(recordId);
+
+        WrTemplate tpl = templateMapper.selectById(record.getTemplateId());
+        int limit = (tpl != null && tpl.getMaxTotalChars() != null) ? tpl.getMaxTotalChars() : 0;
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("currentChars",  current);
+        result.put("maxTotalChars", limit);
+        // enabled = true 时前端显示进度条；false 时隐藏即可
+        result.put("enabled",       limit > 0);
+        return result;
     }
 
     @Override

@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "上报管理")
 @RestController
@@ -43,13 +44,36 @@ public class WrRecordController {
         return R.ok(recordService.saveOrUpdate(req, u));
     }
 
-    @Operation(summary = "提交上报（机构用户）", description = "提交草稿，进入待审核状态")
+    @Operation(summary = "提交上报（机构用户）",
+               description = "提交草稿，进入待审核状态。\n" +
+                             "若模板设置了总字数限制（max_total_chars > 0），提交时后端会统计所有 cell_value 的字符总数；\n" +
+                             "超出则返回 code=4032 并提示具体字数，前端应展示\"填报字数超出限制\"提示。")
     @ApiResponse(responseCode = "200", description = "success", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = "{\"code\":200,\"message\":\"success\",\"data\":null}")))
     @PostMapping("/submit")
     public R<Void> submit(@Valid @RequestBody RecordSubmitRequest req) {
         LoginUser u = requireOrgUser();
         recordService.submit(req, u);
         return R.ok();
+    }
+
+    /**
+     * 实时字数统计（机构用户）。
+     * <p>前端在填报页面实时调用（建议防抖 500ms），用于显示进度条。</p>
+     * <p>响应字段：</p>
+     * <ul>
+     *   <li>{@code currentChars}  — 当前已填字符总数（SUM LENGTH(cell_value)，NULL 值不计）</li>
+     *   <li>{@code maxTotalChars} — 模板限制上限（0 = 该模板未启用字数限制）</li>
+     *   <li>{@code enabled}       — true = 模板启用了字数限制；false = 无限制，进度条可隐藏</li>
+     * </ul>
+     */
+    @Operation(summary = "查询当前填报字符数（机构用户）",
+               description = "实时返回该 recordId 已填字符总数及模板上限。enabled=false 时前端可隐藏字数进度条。")
+    @ApiResponse(responseCode = "200", description = "success", content = @Content(mediaType = "application/json",
+            examples = @ExampleObject(value = "{\"code\":200,\"message\":\"success\",\"data\":{\"currentChars\":1234,\"maxTotalChars\":5000,\"enabled\":true}}")))
+    @GetMapping("/charcount/{recordId}")
+    public R<Map<String, Object>> charCount(@PathVariable Long recordId) {
+        LoginUser u = requireOrgUser();
+        return R.ok(recordService.charCount(recordId, u));
     }
 
     @Operation(summary = "查询我的上报记录（机构用户）")

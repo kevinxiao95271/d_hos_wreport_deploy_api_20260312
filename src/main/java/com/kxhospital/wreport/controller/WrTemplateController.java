@@ -90,6 +90,8 @@ public class WrTemplateController {
         WrTemplate template = new WrTemplate();
         template.setTemplateName(req.getTemplateName());
         template.setDescription(req.getDescription());
+        // maxTotalChars: 0 或 null 均视为未启用；正整数表示启用并设置上限
+        template.setMaxTotalChars(req.getMaxTotalChars() != null ? req.getMaxTotalChars() : 0);
 
         return R.ok(templateService.add(template, req.getItems()));
     }
