@@ -3,3 +3,6 @@ logs/
 *.log
 tmp_*.txt
 .claude/
+scripts/
+bk-1/
+docs/
