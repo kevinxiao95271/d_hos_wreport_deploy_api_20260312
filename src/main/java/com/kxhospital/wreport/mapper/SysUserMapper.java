@@ -4,6 +4,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -39,4 +40,21 @@ public interface SysUserMapper {
             "WHERE ur.user_id = #{userId} " +
             "LIMIT 1")
     String findRoleCode(@Param("userId") Long userId);
+
+    /**
+     * 查询所有可分配给任务的机构用户列表。
+     * <p>链路：sys_user → hr_person → hr_organization，不使用 sys_user.org_id。</p>
+     * <p>过滤条件：角色为 qcUser、账号未删除且已启用、hr_person 存在对应人员档案。</p>
+     * <p>供 GET /wr/org/list 接口使用，前端在"分配机构"弹窗中加载可选项。</p>
+     */
+    @Select("SELECT u.user_id AS \"userId\", u.account, u.real_name AS \"realName\", " +
+            "       p.org_id AS \"orgId\", o.org_name AS \"orgName\" " +
+            "FROM sys_user u " +
+            "JOIN sys_user_role ur ON ur.user_id = u.user_id " +
+            "JOIN sys_role r       ON r.role_id  = ur.role_id AND r.role_code = 'qcUser' " +
+            "JOIN hr_person p      ON p.person_id = u.person_id AND p.del_flag = 'N' " +
+            "JOIN hr_organization o ON o.org_id   = p.org_id " +
+            "WHERE u.del_flag = 'N' AND u.status_flag = 1 " +
+            "ORDER BY o.org_name")
+    List<Map<String, Object>> listOrgUsers();
 }
