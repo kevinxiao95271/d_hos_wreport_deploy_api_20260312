@@ -113,7 +113,8 @@ public class WrTaskController {
 
     private LoginUser requireAdmin() {
         LoginUser u = UserContext.get();
-        if (u == null || !u.isAdmin()) throw new RuntimeException("权限不足，需要管理员角色");
+        if (u == null || !u.isAdmin())
+            throw new com.kxhospital.wreport.common.BusinessException(403, "权限不足，需要管理员角色");
         return u;
     }
 }

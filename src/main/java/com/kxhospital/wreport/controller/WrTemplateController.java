@@ -90,6 +90,8 @@ public class WrTemplateController {
         WrTemplate template = new WrTemplate();
         template.setTemplateName(req.getTemplateName());
         template.setDescription(req.getDescription());
+        // templateType: 不传或 null 时默认 "form"；传 "score" 表示评分细则模板
+        template.setTemplateType(req.getTemplateType() != null ? req.getTemplateType() : "form");
         // maxTotalChars: 0 或 null 均视为未启用；正整数表示启用并设置上限
         template.setMaxTotalChars(req.getMaxTotalChars() != null ? req.getMaxTotalChars() : 0);
 
@@ -167,6 +169,7 @@ public class WrTemplateController {
 
     private void requireAdmin() {
         LoginUser u = UserContext.get();
-        if (u == null || !u.isAdmin()) throw new RuntimeException("权限不足，需要管理员角色");
+        if (u == null || !u.isAdmin())
+            throw new com.kxhospital.wreport.common.BusinessException(403, "权限不足，需要管理员角色");
     }
 }

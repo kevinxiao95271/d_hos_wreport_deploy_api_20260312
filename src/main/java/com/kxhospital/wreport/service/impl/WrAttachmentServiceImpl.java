@@ -1,5 +1,6 @@
 package com.kxhospital.wreport.service.impl;
 
+import com.kxhospital.wreport.common.BusinessException;
 import com.kxhospital.wreport.config.MinioProperties;
 import com.kxhospital.wreport.config.MinioService;
 import com.kxhospital.wreport.entity.WrAttachment;
@@ -7,6 +8,7 @@ import com.kxhospital.wreport.entity.WrRecord;
 import com.kxhospital.wreport.entity.WrTemplateItem;
 import com.kxhospital.wreport.mapper.WrAttachmentMapper;
 import com.kxhospital.wreport.mapper.WrRecordMapper;
+import com.kxhospital.wreport.mapper.WrTemplateItemMapper;
 import com.kxhospital.wreport.pojo.response.AttachmentVO;
 import com.kxhospital.wreport.service.WrAttachmentService;
 import com.kxhospital.wreport.service.WrTemplateService;
@@ -25,14 +27,51 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class WrAttachmentServiceImpl implements WrAttachmentService {
 
-    private final WrAttachmentMapper attachmentMapper;
-    private final WrRecordMapper     recordMapper;
-    private final WrTemplateService  templateService;
-    private final MinioService       minioService;
-    private final MinioProperties    minioProps;
+    private final WrAttachmentMapper    attachmentMapper;
+    private final WrRecordMapper        recordMapper;
+    private final WrTemplateService     templateService;
+    private final WrTemplateItemMapper  itemMapper;
+    private final MinioService          minioService;
+    private final MinioProperties       minioProps;
 
     @Override
     public AttachmentVO upload(Long recordId, Long itemId, MultipartFile file) {
+        // ---- 上传校验（score 类模板专用，itemId 不为空时生效）----
+        if (itemId != null) {
+            WrTemplateItem item = itemMapper.selectById(itemId);
+            if (item != null) {
+                // 1. allowed_formats 校验：取文件扩展名与允许列表匹配（大小写不敏感）
+                //    allowed_formats 为 null 或空串时不限制格式（error 4035）
+                String formats = item.getAllowedFormats();
+                if (formats != null && !formats.trim().isEmpty()) {
+                    String originalName = file.getOriginalFilename() != null
+                            ? file.getOriginalFilename() : "";
+                    int dotIdx = originalName.lastIndexOf('.');
+                    String ext = dotIdx >= 0
+                            ? originalName.substring(dotIdx + 1).toLowerCase()
+                            : "";
+                    boolean formatOk = java.util.Arrays.stream(formats.split(","))
+                            .map(String::trim)
+                            .map(String::toLowerCase)
+                            .anyMatch(f -> f.equals(ext));
+                    if (!formatOk) {
+                        throw new BusinessException(4035,
+                                "指标「" + item.getItemName() + "」仅支持上传 "
+                                        + formats + " 格式，当前文件扩展名为「" + ext + "」");
+                    }
+                }
+                // 2. max_attachments 校验：超出上限则拒绝（error 4034）
+                if (item.getMaxAttachments() != null && item.getMaxAttachments() > 0) {
+                    int current = attachmentMapper.countByRecordAndItem(recordId, itemId);
+                    if (current >= item.getMaxAttachments()) {
+                        throw new BusinessException(4034,
+                                "指标「" + item.getItemName() + "」最多上传 " + item.getMaxAttachments()
+                                        + " 个文件，当前已有 " + current + " 个");
+                    }
+                }
+            }
+        }
+
         String prefix = "record/" + recordId;
         String url    = minioService.uploadEvidence(file, prefix);
 
@@ -91,6 +130,17 @@ public class WrAttachmentServiceImpl implements WrAttachmentService {
         }).collect(Collectors.toList());
     }
 
+    /** 递归把树形 items 展平为一维列表，方便按 id 查找。 */
+    private void flattenTree(List<WrTemplateItem> nodes, List<WrTemplateItem> result) {
+        if (nodes == null) return;
+        for (WrTemplateItem node : nodes) {
+            result.add(node);
+            if (node.getChildren() != null && !node.getChildren().isEmpty()) {
+                flattenTree(node.getChildren(), result);
+            }
+        }
+    }
+
     /**
      * 根据 recordId 找到其模板，批量获取带 headerPath 的 items，
      * 返回 itemId → WrTemplateItem 的查找 Map。
@@ -106,9 +156,11 @@ public class WrAttachmentServiceImpl implements WrAttachmentService {
         WrRecord record = recordMapper.selectById(recordId);
         if (record == null || record.getTemplateId() == null) return Collections.emptyMap();
 
-        // templateService.items() 内部已调用 fillHeaderPath，直接可用
-        List<WrTemplateItem> items = templateService.items(record.getTemplateId());
-        return items.stream()
+        // templateService.items() 返回树形结构，需递归展平后建 Map
+        List<WrTemplateItem> tree = templateService.items(record.getTemplateId());
+        List<WrTemplateItem> flat = new java.util.ArrayList<>();
+        flattenTree(tree, flat);
+        return flat.stream()
                 .filter(i -> neededIds.contains(i.getId()))
                 .collect(Collectors.toMap(WrTemplateItem::getId, i -> i));
     }

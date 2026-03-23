@@ -153,3 +153,37 @@ CREATE TABLE IF NOT EXISTS wr_template_row (
     CONSTRAINT uq_wr_template_row UNIQUE (template_id, row_index)
 );
 CREATE INDEX IF NOT EXISTS idx_wr_template_row_tid ON wr_template_row(template_id);
+
+-- ============================================================
+-- 评分细则模板（score 类型）扩展字段
+-- ============================================================
+
+-- wr_template.template_type：模板类型
+--   'form'  → 原有表单录入模板（附件2/附件3，默认值，存量数据保持不变）
+--   'score' → 评分细则模板（纯文件上传 + 分值，本次新增）
+ALTER TABLE wr_template
+    ADD COLUMN IF NOT EXISTS template_type VARCHAR(20) NOT NULL DEFAULT 'form';
+
+-- wr_template_item.min_attachments：该指标最少上传文件数
+--   0 → 不强制校验；正整数 → 提交时文件不足则拒绝（error 4033）
+ALTER TABLE wr_template_item
+    ADD COLUMN IF NOT EXISTS min_attachments INT NOT NULL DEFAULT 0;
+
+-- wr_template_item.max_attachments：该指标最多上传文件数
+--   0 → 不限；正整数 → 上传时超出则直接拒绝
+ALTER TABLE wr_template_item
+    ADD COLUMN IF NOT EXISTS max_attachments INT NOT NULL DEFAULT 0;
+
+-- wr_template_item.score_value：该指标固定分值（仅 score 类模板使用）
+--   form 类模板默认 0 即可；导出时按指标文件达标情况折算得分
+ALTER TABLE wr_template_item
+    ADD COLUMN IF NOT EXISTS score_value NUMERIC(6,1) NOT NULL DEFAULT 0;
+
+-- wr_template_item.allowed_formats：允许上传的文件格式（逗号分隔扩展名，不含点）
+--   NULL 或空串 → 不限制任何格式
+--   示例："pdf"              → 仅 PDF
+--         "pdf,doc,docx"     → PDF 或 Word
+--         "pdf,jpg,jpeg,png,gif" → PDF 或图片
+--   上传时后端取扩展名与此列表匹配，不符合则拒绝（error 4035）
+ALTER TABLE wr_template_item
+    ADD COLUMN IF NOT EXISTS allowed_formats VARCHAR(200);

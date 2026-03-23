@@ -12,7 +12,8 @@ import java.util.List;
 
 @Mapper
 public interface WrTemplateItemMapper extends BaseMapper<WrTemplateItem> {
-    @Select("SELECT * FROM wr_template_item WHERE template_id = #{templateId} AND del_flag = 0 ORDER BY header_row, col_index")
+    // 先按 sort_num 排，保证建树后兄弟节点顺序与模板设计一致
+    @Select("SELECT * FROM wr_template_item WHERE template_id = #{templateId} AND del_flag = 0 ORDER BY sort_num ASC, col_index ASC")
     List<WrTemplateItem> selectByTemplateId(@Param("templateId") Long templateId);
 
     /** 软删除（del_flag=1），保留行以供审计 */

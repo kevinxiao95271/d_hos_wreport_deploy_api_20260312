@@ -76,6 +76,17 @@ public class WrRecordController {
         return R.ok(recordService.charCount(recordId, u));
     }
 
+    @Operation(summary = "评分汇总（score 类模板专用）",
+               description = "返回该填报记录下每个叶子指标的上传情况及得分，以及总分/满分。\n" +
+                             "仅 template_type='score' 的模板有效，其他类型调用会返回错误。\n" +
+                             "机构用户只能查自己的记录，管理员无限制。")
+    @GetMapping("/score/{recordId}")
+    public R<Map<String, Object>> scoreDetail(@PathVariable Long recordId) {
+        LoginUser u = UserContext.get();
+        if (u == null) throw new RuntimeException("未登录");
+        return R.ok(recordService.scoreDetail(recordId, u));
+    }
+
     @Operation(summary = "查询我的上报记录（机构用户）")
     @GetMapping("/my/{taskId}")
     public R<WrRecord> myRecord(@PathVariable Long taskId) {
@@ -150,14 +161,17 @@ public class WrRecordController {
 
     private LoginUser requireAdmin() {
         LoginUser u = UserContext.get();
-        if (u == null || !u.isAdmin()) throw new RuntimeException("权限不足，需要管理员角色");
+        if (u == null || !u.isAdmin())
+            throw new com.kxhospital.wreport.common.BusinessException(403, "权限不足，需要管理员角色");
         return u;
     }
 
     private LoginUser requireOrgUser() {
         LoginUser u = UserContext.get();
-        if (u == null) throw new RuntimeException("未登录");
-        if (!u.isOrgUser()) throw new RuntimeException("权限不足，需要机构用户角色");
+        if (u == null)
+            throw new com.kxhospital.wreport.common.BusinessException(401, "未登录或登录已过期");
+        if (!u.isOrgUser())
+            throw new com.kxhospital.wreport.common.BusinessException(403, "权限不足，需要机构用户角色");
         return u;
     }
 }

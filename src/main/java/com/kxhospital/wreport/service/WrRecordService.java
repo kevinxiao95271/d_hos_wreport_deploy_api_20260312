@@ -33,6 +33,25 @@ public interface WrRecordService {
     Map<String, Object> charCount(Long recordId, LoginUser user);
 
     /**
+     * 评分汇总（score 类模板专用）。
+     * 返回每个叶子指标的上传情况及得分，以及总分。
+     * <p>返回结构示例：
+     * <pre>
+     * {
+     *   "totalScore": 30.0,       // 已达标指标的分值合计
+     *   "maxScore": 40.0,         // 全部指标满分合计
+     *   "items": [
+     *     { "itemId": 123, "itemName": "会议-主PDF", "minAttachments": 1,
+     *       "uploaded": 1, "reached": true, "scoreValue": 10.0 },
+     *     ...
+     *   ]
+     * }
+     * </pre>
+     * </p>
+     */
+    Map<String, Object> scoreDetail(Long recordId, LoginUser user);
+
+    /**
      * 跨机构横向视图。
      * @param taskId     任务ID
      * @param itemIds    标准模板：选中展示的叶子列ID（null=全部）；矩阵模板忽略

@@ -116,7 +116,7 @@ public class WrRecordServiceImpl implements WrRecordService {
             }
         }
 
-        // ---- 总字数上限校验 ----
+        // ---- 总字数上限校验（form 类模板）----
         // max_total_chars > 0 时功能启用；= 0 / null 时跳过（不限制）。
         // 统计该 record 下所有 wr_record_value.cell_value 的字符总数（NULL 值不计入）。
         // 超出则返回错误码 4032，前端据此提示"字数超限"。
@@ -126,6 +126,28 @@ public class WrRecordServiceImpl implements WrRecordService {
             if (totalChars > tpl.getMaxTotalChars()) {
                 throw new BusinessException(4032,
                         "填报总字数 " + totalChars + " 已超出模板限制 " + tpl.getMaxTotalChars() + " 字，请精简后重新提交");
+            }
+        }
+
+        // ---- 最少附件数校验（score 类模板）----
+        // 仅当模板类型为 "score" 时执行：遍历所有叶子指标，
+        // 检查 min_attachments > 0 的指标是否已上传足够数量的文件。
+        // 不足则返回错误码 4033，前端据此提示具体缺少哪个指标的文件。
+        if (tpl != null && "score".equals(tpl.getTemplateType())) {
+            List<WrTemplateItem> leafItems = itemMapper.selectList(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<WrTemplateItem>()
+                            .eq(WrTemplateItem::getTemplateId, tpl.getId())
+                            .eq(WrTemplateItem::getIsLeaf, 1)
+                            .eq(WrTemplateItem::getDelFlag, 0));
+            for (WrTemplateItem leafItem : leafItems) {
+                if (leafItem.getMinAttachments() != null && leafItem.getMinAttachments() > 0) {
+                    int uploaded = attachmentMapper.countByRecordAndItem(record.getId(), leafItem.getId());
+                    if (uploaded < leafItem.getMinAttachments()) {
+                        throw new BusinessException(4033,
+                                "指标「" + leafItem.getItemName() + "」至少需要上传 "
+                                        + leafItem.getMinAttachments() + " 个文件，当前仅有 " + uploaded + " 个");
+                    }
+                }
             }
         }
 
@@ -160,6 +182,66 @@ public class WrRecordServiceImpl implements WrRecordService {
         result.put("maxTotalChars", limit);
         // enabled = true 时前端显示进度条；false 时隐藏即可
         result.put("enabled",       limit > 0);
+        return result;
+    }
+
+    /**
+     * 评分汇总（score 类模板专用）。
+     * 遍历模板所有叶子指标，统计每个指标已上传的文件数，
+     * 与 min_attachments 比较判断是否"达标"，达标则计入 score_value。
+     */
+    @Override
+    public Map<String, Object> scoreDetail(Long recordId, LoginUser user) {
+        WrRecord record = recordMapper.selectById(recordId);
+        if (record == null) throw new RuntimeException("上报记录不存在");
+        // 管理员不受限；机构用户只能查自己机构的记录
+        if (!user.isAdmin() && (user.getOrgId() == null || !record.getOrgId().equals(user.getOrgId()))) {
+            throw new BusinessException(403, "无权查询该记录的评分汇总");
+        }
+
+        WrTemplate tpl = templateMapper.selectById(record.getTemplateId());
+        if (tpl == null || !"score".equals(tpl.getTemplateType())) {
+            throw new RuntimeException("该记录对应的模板不是评分细则类型");
+        }
+
+        // 查该模板的所有叶子指标
+        List<WrTemplateItem> leafItems = itemMapper.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<WrTemplateItem>()
+                        .eq(WrTemplateItem::getTemplateId, tpl.getId())
+                        .eq(WrTemplateItem::getIsLeaf, 1)
+                        .eq(WrTemplateItem::getDelFlag, 0)
+                        .orderByAsc(WrTemplateItem::getSortNum));
+
+        java.math.BigDecimal totalScore = java.math.BigDecimal.ZERO;
+        java.math.BigDecimal maxScore   = java.math.BigDecimal.ZERO;
+        List<Map<String, Object>> itemDetails = new ArrayList<>();
+
+        for (WrTemplateItem leaf : leafItems) {
+            int uploaded = attachmentMapper.countByRecordAndItem(recordId, leaf.getId());
+            int minReq   = leaf.getMinAttachments() != null ? leaf.getMinAttachments() : 0;
+            // 达标条件：minAttachments=0 表示不要求（默认达标）；> 0 时须满足数量
+            boolean reached = (minReq == 0) || (uploaded >= minReq);
+            java.math.BigDecimal score = leaf.getScoreValue() != null
+                    ? leaf.getScoreValue() : java.math.BigDecimal.ZERO;
+
+            maxScore = maxScore.add(score);
+            if (reached) totalScore = totalScore.add(score);
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("itemId",         leaf.getId());
+            row.put("itemName",       leaf.getItemName());
+            row.put("minAttachments", minReq);
+            row.put("maxAttachments", leaf.getMaxAttachments() != null ? leaf.getMaxAttachments() : 0);
+            row.put("uploaded",       uploaded);
+            row.put("reached",        reached);
+            row.put("scoreValue",     score);
+            itemDetails.add(row);
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("totalScore", totalScore);
+        result.put("maxScore",   maxScore);
+        result.put("items",      itemDetails);
         return result;
     }
 

@@ -49,9 +49,10 @@ public class WrTemplateServiceImpl implements WrTemplateService {
     public TemplateDetailVO detailFull(Long id) {
         TemplateDetailVO vo = new TemplateDetailVO();
         vo.setTemplate(templateMapper.selectById(id));
-        List<WrTemplateItem> items = itemMapper.selectByTemplateId(id);
-        fillHeaderPath(items);
-        vo.setItems(items);
+        // items 与 GET /wr/template/items 保持一致：已建树、已填 headerPath、按 sort_num 排序
+        List<WrTemplateItem> flat = itemMapper.selectByTemplateId(id);
+        fillHeaderPath(flat);
+        vo.setItems(buildTree(flat));
         vo.setRows(rowMapper.selectByTemplateId(id));
         return vo;
     }
@@ -60,7 +61,33 @@ public class WrTemplateServiceImpl implements WrTemplateService {
     public List<WrTemplateItem> items(Long templateId) {
         List<WrTemplateItem> items = itemMapper.selectByTemplateId(templateId);
         fillHeaderPath(items);
-        return items;
+        return buildTree(items);
+    }
+
+    /**
+     * 将平铺列表按 parentId 关系组装成树，返回根节点列表。
+     * <p>Mapper 已按 sort_num ASC 排序，建树后兄弟节点顺序忠于模板设计顺序。</p>
+     */
+    private List<WrTemplateItem> buildTree(List<WrTemplateItem> items) {
+        if (items == null || items.isEmpty()) return items;
+        Map<Long, WrTemplateItem> byId = items.stream()
+                .collect(Collectors.toMap(WrTemplateItem::getId, i -> i));
+        List<WrTemplateItem> roots = new ArrayList<>();
+        for (WrTemplateItem item : items) {
+            if (item.getParentId() == null) {
+                roots.add(item);
+            } else {
+                WrTemplateItem parent = byId.get(item.getParentId());
+                if (parent != null) {
+                    if (parent.getChildren() == null) parent.setChildren(new ArrayList<>());
+                    parent.getChildren().add(item);
+                } else {
+                    // 父节点找不到（数据异常），当根节点兜底
+                    roots.add(item);
+                }
+            }
+        }
+        return roots;
     }
 
     /**

@@ -32,4 +32,25 @@ public class TemplateItemRequest {
      * 绑定字典编码。null 或空串 → 普通输入框；有效 dictCode → 下拉选择框。
      */
     private String  dictCode;
+
+    /**
+     * 该指标最少上传文件数（score 类模板使用）。0 或 null = 不强制校验。
+     */
+    private Integer minAttachments;
+
+    /**
+     * 该指标最多上传文件数（score 类模板使用）。0 或 null = 不限。
+     */
+    private Integer maxAttachments;
+
+    /**
+     * 该指标固定分值（score 类模板使用）。导出时使用，用户无需填写。
+     */
+    private java.math.BigDecimal scoreValue;
+
+    /**
+     * 允许上传的文件格式，逗号分隔扩展名（不含点），null 或空串 = 不限制。
+     * 示例："pdf"  /  "pdf,doc,docx"  /  "pdf,jpg,jpeg,png,gif"
+     */
+    private String allowedFormats;
 }
