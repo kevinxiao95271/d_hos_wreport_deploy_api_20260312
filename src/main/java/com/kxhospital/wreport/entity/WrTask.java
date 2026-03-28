@@ -12,6 +12,8 @@ public class WrTask implements Serializable {
     @TableId(value = "id", type = IdType.ASSIGN_ID) private Long id;
     private String taskName;
     private Long templateId;
+    /** 任务类型：'normal'=普通模板任务  'daily_work'=日常工作模块任务 */
+    private String taskType;
     private String statYear;
     private LocalDateTime deadline;
     private Integer status;

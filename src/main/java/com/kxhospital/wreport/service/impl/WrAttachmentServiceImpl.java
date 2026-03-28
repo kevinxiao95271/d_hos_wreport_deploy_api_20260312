@@ -5,30 +5,39 @@ import com.kxhospital.wreport.config.MinioProperties;
 import com.kxhospital.wreport.config.MinioService;
 import com.kxhospital.wreport.entity.WrAttachment;
 import com.kxhospital.wreport.entity.WrRecord;
+import com.kxhospital.wreport.entity.WrTask;
 import com.kxhospital.wreport.entity.WrTemplateItem;
 import com.kxhospital.wreport.mapper.WrAttachmentMapper;
 import com.kxhospital.wreport.mapper.WrRecordMapper;
+import com.kxhospital.wreport.mapper.WrTaskMapper;
 import com.kxhospital.wreport.mapper.WrTemplateItemMapper;
 import com.kxhospital.wreport.pojo.response.AttachmentVO;
 import com.kxhospital.wreport.service.WrAttachmentService;
 import com.kxhospital.wreport.service.WrTemplateService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import javax.servlet.http.HttpServletResponse;
+import java.io.InputStream;
+import java.net.URLEncoder;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WrAttachmentServiceImpl implements WrAttachmentService {
 
     private final WrAttachmentMapper    attachmentMapper;
     private final WrRecordMapper        recordMapper;
+    private final WrTaskMapper          taskMapper;
     private final WrTemplateService     templateService;
     private final WrTemplateItemMapper  itemMapper;
     private final MinioService          minioService;
@@ -163,5 +172,109 @@ public class WrAttachmentServiceImpl implements WrAttachmentService {
         return flat.stream()
                 .filter(i -> neededIds.contains(i.getId()))
                 .collect(Collectors.toMap(WrTemplateItem::getId, i -> i));
+    }
+
+    // ========= 打包下载 =========
+
+    @Override
+    public void downloadZip(Long recordId, HttpServletResponse response) {
+        // 1. 查记录
+        WrRecord record = recordMapper.selectById(recordId);
+        if (record == null) throw new BusinessException(404, "填报记录不存在");
+
+        // 2. 拼 ZIP 文件名：{任务名}_{机构名}_{yyyyMMdd}.zip
+        String taskName = "任务";
+        if (record.getTaskId() != null) {
+            WrTask task = taskMapper.selectById(record.getTaskId());
+            if (task != null && task.getTaskName() != null) taskName = task.getTaskName();
+        }
+        String orgName = record.getOrgName() != null ? record.getOrgName() : "未知机构";
+        String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        // 过滤文件名中的非法字符
+        String zipBaseName = (taskName + "_" + orgName + "_" + dateStr)
+                .replaceAll("[\\\\/:*?\"<>|]", "_");
+        String zipFileName = zipBaseName + ".zip";
+
+        // 3. 查附件列表（含 itemName / headerPath）
+        List<AttachmentVO> attachments = listByRecord(recordId);
+        if (attachments.isEmpty()) throw new BusinessException(404, "该记录暂无附件");
+
+        // 4. 设置响应头
+        try {
+            String encoded = URLEncoder.encode(zipFileName, "UTF-8").replace("+", "%20");
+            response.setContentType("application/zip");
+            response.setHeader("Content-Disposition", "attachment; filename=\"" + zipFileName
+                    + "\"; filename*=UTF-8''" + encoded);
+            response.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+        } catch (Exception e) {
+            throw new RuntimeException("设置响应头失败", e);
+        }
+
+        // 5. 流式写入 ZIP
+        try (ZipOutputStream zos = new ZipOutputStream(response.getOutputStream(),
+                java.nio.charset.StandardCharsets.UTF_8)) {
+            // 记录每个目录下的文件名，处理重名
+            Map<String, Integer> nameCounter = new HashMap<>();
+
+            for (AttachmentVO att : attachments) {
+                if (att.getAttachPath() == null) continue;
+
+                // 构造 ZIP 内路径：目录 + 文件名
+                String dir = buildZipDir(att.getHeaderPath());
+                String fileName = att.getAttachName() != null ? att.getAttachName() : "file";
+                String entryPath = dir + deduplicateName(nameCounter, dir + fileName, fileName);
+
+                InputStream in = null;
+                try {
+                    in = minioService.getObjectStream(minioProps.getBucketEvidence(), att.getAttachPath());
+                    zos.putNextEntry(new ZipEntry(entryPath));
+                    byte[] buf = new byte[8192];
+                    int len;
+                    while ((len = in.read(buf)) != -1) {
+                        zos.write(buf, 0, len);
+                    }
+                    zos.closeEntry();
+                } catch (Exception e) {
+                    // 单个文件失败不中断整个 ZIP，写入占位说明文件
+                    log.warn("[ZIP] 跳过文件 {} : {}", att.getAttachName(), e.getMessage());
+                    try {
+                        zos.putNextEntry(new ZipEntry(entryPath + ".error.txt"));
+                        zos.write(("文件获取失败: " + e.getMessage()).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                        zos.closeEntry();
+                    } catch (Exception ignored) {}
+                } finally {
+                    if (in != null) { try { in.close(); } catch (Exception ignored) {} }
+                }
+            }
+            zos.finish();
+        } catch (Exception e) {
+            log.error("[ZIP] 打包失败 recordId={}: {}", recordId, e.getMessage(), e);
+            throw new RuntimeException("打包下载失败: " + e.getMessage(), e);
+        }
+    }
+
+    /** 将 headerPath 列表转为 ZIP 目录路径，末尾带 /。 */
+    private String buildZipDir(List<String> headerPath) {
+        if (headerPath == null || headerPath.isEmpty()) return "附件/";
+        // 最后一级是文件所属节点名，作为目录名的最后一段
+        return String.join("/", headerPath) + "/";
+    }
+
+    /**
+     * 若同目录下同名文件已出现过，自动追加序号。
+     * key = dir+fileName；返回去重后的文件名。
+     */
+    private String deduplicateName(Map<String, Integer> counter, String key, String fileName) {
+        if (!counter.containsKey(key)) {
+            counter.put(key, 1);
+            return fileName;
+        }
+        int seq = counter.get(key) + 1;
+        counter.put(key, seq);
+        int dot = fileName.lastIndexOf('.');
+        if (dot >= 0) {
+            return fileName.substring(0, dot) + "_" + seq + fileName.substring(dot);
+        }
+        return fileName + "_" + seq;
     }
 }

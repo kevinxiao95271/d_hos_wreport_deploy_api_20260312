@@ -51,6 +51,25 @@ public class MinioService {
         }
     }
 
+    // ========= 下载 =========
+
+    /**
+     * 从 MinIO 获取对象输入流，由调用方负责关闭。
+     * url 格式：{endpoint}/{bucket}/{objectName}
+     */
+    public java.io.InputStream getObjectStream(String bucket, String url) {
+        try {
+            String objectName = extractObjectName(url, bucket);
+            return minioClient.getObject(
+                    io.minio.GetObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(objectName)
+                            .build());
+        } catch (Exception e) {
+            throw new RuntimeException("获取文件流失败: " + e.getMessage(), e);
+        }
+    }
+
     // ========= 删除 =========
 
     public void deleteByUrl(String bucket, String url) {

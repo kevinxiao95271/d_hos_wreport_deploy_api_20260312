@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 
 @Tag(name = "附件管理")
@@ -40,5 +41,15 @@ public class WrAttachmentController {
     @GetMapping("/list/{recordId}")
     public R<List<AttachmentVO>> list(@PathVariable Long recordId) {
         return R.ok(attachmentService.listByRecord(recordId));
+    }
+
+    @Operation(summary = "打包下载记录所有附件（ZIP）",
+               description = "将指定填报记录的全部附件打包为 ZIP 流式返回。\n" +
+                             "ZIP 文件名格式：{任务名}_{机构名}_{yyyyMMdd}.zip\n" +
+                             "ZIP 内按 headerPath 层级分目录存放，同目录同名文件自动追加序号。\n" +
+                             "管理员及该机构用户均可调用；响应为二进制流，Content-Disposition 携带文件名。")
+    @GetMapping("/download/zip/{recordId}")
+    public void downloadZip(@PathVariable Long recordId, HttpServletResponse response) {
+        attachmentService.downloadZip(recordId, response);
     }
 }

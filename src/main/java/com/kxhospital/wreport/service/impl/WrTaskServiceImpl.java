@@ -42,6 +42,7 @@ public class WrTaskServiceImpl implements WrTaskService {
 
     @Override
     public Long add(WrTask task) {
+        if (task.getTaskType() == null) task.setTaskType("normal");
         task.setStatus(0);
         taskMapper.insert(task);
         return task.getId();
