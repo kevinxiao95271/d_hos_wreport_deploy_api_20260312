@@ -4,6 +4,7 @@ import com.kxhospital.wreport.common.LoginUser;
 import com.kxhospital.wreport.entity.*;
 import com.kxhospital.wreport.pojo.request.*;
 import com.kxhospital.wreport.pojo.response.DwAttachmentVO;
+import com.kxhospital.wreport.pojo.response.DwAdminOverviewVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -50,4 +51,8 @@ public interface DwRecordService {
     // ── 提交/审核 ─────────────────────────────────────
     void submit(Long recordId, LoginUser user);
     void audit(Long recordId, Integer result, String remark, LoginUser user);
+
+    // ── 管理端汇总视图 ────────────────────────────────
+    /** 跨机构汇总视图：各机构填报状态及各模块数据量 */
+    DwAdminOverviewVO adminOverview(Long taskId);
 }

@@ -579,7 +579,114 @@ POST /dw/record/audit/:recordId?result=1&remark=xxx
 
 ---
 
-## 九、任务列表路由分流
+## 九、管理端数据汇聚视图
+
+> 日常工作任务没有模版，**不能**调用普通任务的 `GET /wr/record/admin/crossview`（会报"该任务未绑定模版"）。
+> 前端需根据 `task.taskType` 路由到不同的汇聚视图组件。
+
+### 9.1 汇聚视图 API
+
+```
+GET /dw/record/admin/overview?taskId=xxx
+Authorization: Bearer <admin_token>
+```
+
+**响应结构：**
+
+```ts
+interface DwAdminOverviewVO {
+  total:      number   // 任务分配的机构总数
+  notStarted: number   // 尚未创建记录
+  draft:      number   // 草稿
+  submitted:  number   // 已提交（待审核）
+  approved:   number   // 已通过
+  rejected:   number   // 已驳回
+
+  orgRows: OrgRow[]
+}
+
+interface OrgRow {
+  orgId:        string           // 机构ID（Snowflake，以字符串传输）
+  orgName:      string | null    // 机构名（未开始的机构若历史无记录则为 null）
+  recordId:     string | null    // 记录ID；null 表示该机构尚未开始
+  status:       0|1|2|3 | null  // null = 未开始
+  statusLabel:  string           // 未开始 / 草稿 / 已提交 / 已通过 / 已驳回
+  meetingCount:  number          // 已填质控会议条数
+  trainingCount: number          // 已填质控培训条数
+  guidanceCount: number          // 已填质控指导条数
+  surveyCount:   number          // 已填质控调研条数
+  hasFunding:    boolean         // 是否已填经费执行
+  bonusCount:    number          // 加分项条数（publication + competition 合计）
+}
+```
+
+**实际数据示例（线上验证）：**
+
+```json
+{
+  "total": 11,
+  "notStarted": 7, "draft": 2, "submitted": 2, "approved": 0, "rejected": 0,
+  "orgRows": [
+    { "orgName": "分娩镇痛技术指导中心", "statusLabel": "已提交",
+      "meetingCount": 3, "trainingCount": 2, "guidanceCount": 2,
+      "surveyCount": 1, "hasFunding": true, "bonusCount": 2 },
+    { "orgName": "省口腔正畸中心", "statusLabel": "已提交",
+      "meetingCount": 4, "trainingCount": 3, "guidanceCount": 3,
+      "surveyCount": 2, "hasFunding": true, "bonusCount": 2 }
+  ]
+}
+```
+
+### 9.2 前端渲染建议
+
+**状态统计卡片行：**
+```
+总计 11 | 未开始 7 | 草稿 2 | 待审核 2 | 已通过 0 | 已驳回 0
+```
+
+**机构明细表格（推荐列）：**
+
+| 列 | 字段 | 说明 |
+|---|---|---|
+| 机构名称 | `orgName` | null 时显示"—" |
+| 状态 | `statusLabel` | 配合颜色标签 |
+| 质控会议 | `meetingCount` | 0 时灰色显示 |
+| 质控培训 | `trainingCount` | |
+| 质控指导 | `guidanceCount` | |
+| 质控调研 | `surveyCount` | |
+| 经费执行 | `hasFunding` | ✓ / — |
+| 加分项 | `bonusCount` | |
+| 操作 | | 若 `recordId != null`，提供「查看详情」→ `GET /dw/record/{recordId}` |
+
+### 9.3 管理端路由判断逻辑
+
+```js
+// 管理员进入任务的「数据汇聚视图」时
+if (task.taskType === 'daily_work') {
+  // 调用日常工作汇聚视图
+  const overview = await GET(`/dw/record/admin/overview?taskId=${task.id}`)
+  renderDwOverview(overview)
+} else {
+  // 普通表单任务，调用原有 crossview
+  const crossview = await GET(`/wr/record/admin/crossview?taskId=${task.id}`)
+  renderCrossView(crossview)
+}
+```
+
+### 9.4 查看某机构详情
+
+点击「查看详情」后：
+
+```js
+// 管理端查看某机构的完整填报详情
+GET /dw/record/{recordId}   // recordId 来自 overview.orgRows[n].recordId
+```
+
+返回 `DwRecordDetailVO`（见第六节），包含所有模块的完整数据。
+
+---
+
+## 十、任务列表路由分流
 
 ```js
 // 机构端任务列表
@@ -594,6 +701,8 @@ tasks.forEach(task => {
   }
 })
 ```
+
+---
 
 ---
 

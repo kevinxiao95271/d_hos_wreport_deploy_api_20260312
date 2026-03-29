@@ -9,10 +9,12 @@ import com.kxhospital.wreport.entity.*;
 import com.kxhospital.wreport.mapper.*;
 import com.kxhospital.wreport.pojo.request.*;
 import com.kxhospital.wreport.cache.DwRegionCache;
+import com.kxhospital.wreport.pojo.response.DwAdminOverviewVO;
 import com.kxhospital.wreport.pojo.response.DwAttachmentVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO.*;
 import com.kxhospital.wreport.pojo.response.RegionNodeVO;
+import com.kxhospital.wreport.pojo.response.TaskScopeOrgVO;
 import com.kxhospital.wreport.service.DwRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,8 +33,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class DwRecordServiceImpl implements DwRecordService {
 
-    private final WrTaskMapper       taskMapper;
-    private final WrRecordMapper     recordMapper;
+    private final WrTaskMapper            taskMapper;
+    private final WrRecordMapper          recordMapper;
+    private final WrTaskOrgScopeMapper    taskOrgScopeMapper;
     private final DwMeetingMapper    meetingMapper;
     private final DwTrainingMapper   trainingMapper;
     private final DwGuidanceMapper   guidanceMapper;
@@ -566,5 +569,87 @@ public class DwRecordServiceImpl implements DwRecordService {
                     }
                 })
                 .collect(Collectors.toList());
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 管理端汇总视图
+    // ─────────────────────────────────────────────────────────────
+
+    @Override
+    public DwAdminOverviewVO adminOverview(Long taskId) {
+        // 1. 获取任务范围内所有机构（含尚未填报的），并附带当前记录状态
+        List<com.kxhospital.wreport.pojo.response.TaskScopeOrgVO> scopeList =
+                taskOrgScopeMapper.selectScopeWithStatus(taskId);
+
+        // 2. 批量获取已存在的 wr_record（用于取 recordId 和 orgId 映射）
+        List<WrRecord> records = recordMapper.selectByTaskId(taskId);
+        Map<Long, WrRecord> recordByOrg = records.stream()
+                .collect(Collectors.toMap(WrRecord::getOrgId, r -> r, (a, b) -> a));
+
+        // 3. 逐机构构建明细行，并汇总状态计数
+        long notStarted = 0, draft = 0, submitted = 0, approved = 0, rejected = 0;
+        List<DwAdminOverviewVO.OrgRow> orgRows = new ArrayList<>();
+
+        for (com.kxhospital.wreport.pojo.response.TaskScopeOrgVO scope : scopeList) {
+            DwAdminOverviewVO.OrgRow row = new DwAdminOverviewVO.OrgRow();
+            row.setOrgId(scope.getOrgId());
+            row.setOrgName(scope.getOrgName());
+
+            WrRecord rec = recordByOrg.get(scope.getOrgId());
+            if (rec == null) {
+                row.setRecordId(null);
+                row.setStatus(null);
+                row.setStatusLabel("未开始");
+                notStarted++;
+            } else {
+                row.setRecordId(rec.getId());
+                row.setStatus(rec.getStatus());
+                row.setStatusLabel(dwStatusLabel(rec.getStatus()));
+                switch (rec.getStatus()) {
+                    case 0: draft++;     break;
+                    case 1: submitted++; break;
+                    case 2: approved++;  break;
+                    case 3: rejected++;  break;
+                    default: break;
+                }
+
+                // 各模块数据量
+                Long rid = rec.getId();
+                row.setMeetingCount(meetingMapper.selectCount(
+                        new LambdaQueryWrapper<DwMeeting>().eq(DwMeeting::getRecordId, rid)).intValue());
+                row.setTrainingCount(trainingMapper.selectCount(
+                        new LambdaQueryWrapper<DwTraining>().eq(DwTraining::getRecordId, rid)).intValue());
+                row.setGuidanceCount(guidanceMapper.selectCount(
+                        new LambdaQueryWrapper<DwGuidance>().eq(DwGuidance::getRecordId, rid)).intValue());
+                row.setSurveyCount(surveyMapper.selectCount(
+                        new LambdaQueryWrapper<DwSurvey>().eq(DwSurvey::getRecordId, rid)).intValue());
+                row.setHasFunding(fundingMapper.selectCount(
+                        new LambdaQueryWrapper<DwFunding>().eq(DwFunding::getRecordId, rid)) > 0);
+                row.setBonusCount(bonusMapper.selectCount(
+                        new LambdaQueryWrapper<DwBonus>().eq(DwBonus::getRecordId, rid)).intValue());
+            }
+            orgRows.add(row);
+        }
+
+        DwAdminOverviewVO vo = new DwAdminOverviewVO();
+        vo.setTotal(scopeList.size());
+        vo.setNotStarted(notStarted);
+        vo.setDraft(draft);
+        vo.setSubmitted(submitted);
+        vo.setApproved(approved);
+        vo.setRejected(rejected);
+        vo.setOrgRows(orgRows);
+        return vo;
+    }
+
+    private String dwStatusLabel(Integer status) {
+        if (status == null) return "未开始";
+        switch (status) {
+            case 0: return "草稿";
+            case 1: return "已提交";
+            case 2: return "已通过";
+            case 3: return "已驳回";
+            default: return String.valueOf(status);
+        }
     }
 }

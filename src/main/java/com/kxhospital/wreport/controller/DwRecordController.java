@@ -5,6 +5,7 @@ import com.kxhospital.wreport.common.R;
 import com.kxhospital.wreport.common.UserContext;
 import com.kxhospital.wreport.entity.*;
 import com.kxhospital.wreport.pojo.request.*;
+import com.kxhospital.wreport.pojo.response.DwAdminOverviewVO;
 import com.kxhospital.wreport.pojo.response.DwAttachmentVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO;
 import com.kxhospital.wreport.service.DwRecordService;
@@ -31,6 +32,14 @@ public class DwRecordController {
     @GetMapping("/init/{taskId}")
     public R<DwRecordDetailVO> initRecord(@PathVariable Long taskId) {
         return R.ok(service.getOrInitRecord(taskId, user()));
+    }
+
+    @Operation(summary = "跨机构汇总视图（管理员）",
+               description = "返回该日常工作任务下所有机构的填报状态及各模块数据量，替代 normal 任务的 crossview")
+    @GetMapping("/admin/overview")
+    public R<DwAdminOverviewVO> adminOverview(@RequestParam Long taskId) {
+        requireAdmin();
+        return R.ok(service.adminOverview(taskId));
     }
 
     @Operation(summary = "查看填报详情",
@@ -170,6 +179,12 @@ public class DwRecordController {
     private LoginUser user() {
         LoginUser u = UserContext.get();
         if (u == null) throw new com.kxhospital.wreport.common.BusinessException(401, "未登录");
+        return u;
+    }
+
+    private LoginUser requireAdmin() {
+        LoginUser u = user();
+        if (!u.isAdmin()) throw new com.kxhospital.wreport.common.BusinessException(403, "无权限");
         return u;
     }
 }
