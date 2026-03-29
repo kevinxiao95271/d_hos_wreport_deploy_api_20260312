@@ -41,8 +41,11 @@ public class DwConfigServiceImpl implements DwConfigService {
         return modules.stream().map(m -> {
             DwModuleConfigVO vo = new DwModuleConfigVO();
             BeanUtils.copyProperties(m, vo);
-            // 机构用户不返回 scoreRule
-            if (!isAdmin) vo.setScoreRule(null);
+            // 机构用户不返回分值相关字段（scoreMax / scoreRule），scoreDesc 公开可见
+            if (!isAdmin) {
+                vo.setScoreMax(null);
+                vo.setScoreRule(null);
+            }
 
             List<DwFieldConfig> fields = fieldsByModule.getOrDefault(m.getModuleKey(), Collections.emptyList());
             vo.setExtraFields(fields.stream().map(f -> {

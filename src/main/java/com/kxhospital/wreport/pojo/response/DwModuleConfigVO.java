@@ -9,7 +9,9 @@ import java.util.List;
 
 /**
  * 模块配置聚合 VO（前端一次性拉取，用于渲染模块名/提示语/动态字段）
- * score_rule 字段仅在管理员请求时返回，机构端该字段为 null。
+ * scoreDesc：公开版考核说明，机构端 + 管理员均可见。
+ * scoreRule：完整评分规则（含分值），仅管理员可见，机构端返回 null。
+ * scoreMax：满分值，仅管理员可见，机构端返回 null。
  */
 @Data
 public class DwModuleConfigVO {
@@ -17,8 +19,11 @@ public class DwModuleConfigVO {
     private Long id;
     private String moduleKey;
     private String moduleName;
+    /** 满分值，仅管理员可见 */
     private BigDecimal scoreMax;
-    /** 评分规则，仅管理员可见；机构端接口不返回此字段（置 null） */
+    /** 公开版考核说明（去掉具体分值），机构端 + 管理员均可见 */
+    private String scoreDesc;
+    /** 完整评分规则（含分值），仅管理员可见；机构端为 null */
     private String scoreRule;
     private Boolean isEnabled;
     private Integer sortOrder;

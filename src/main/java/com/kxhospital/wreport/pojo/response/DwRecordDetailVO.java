@@ -96,12 +96,29 @@ public class DwRecordDetailVO {
         private String guidanceForm;
         private String guidanceContent;
         private Integer cityCenterCount;
+        /** 勾选的市级中心 ID 列表（供前端回显树选择器） */
         private String cityCenterIds;
+        /** 勾选的市级中心名称列表（平铺，供快速展示） */
+        private List<String> cityCenterNames;
         private Integer countyCenterCount;
+        /** 勾选的县级中心 ID 列表（供前端回显树选择器） */
         private String countyCenterIds;
+        /** 勾选的县级中心名称列表（平铺，保留兼容） */
+        private List<String> countyCenterNames;
+        /** 勾选的县级中心按所属市分组（供管理端分组展示） */
+        private List<CountyCenterGroupVO> countyCenterGroups;
         private Integer hospitalCount;
         private List<DwAttachmentVO> evidences;
         private Map<String, String> extraValues;
+    }
+
+    /** 县级质控中心按所属市分组 */
+    @Data
+    public static class CountyCenterGroupVO {
+        /** 所属市名称，如"杭州市" */
+        private String cityName;
+        /** 该市下被选中的区县名称列表，如["上城区","西湖区"] */
+        private List<String> counties;
     }
 
     @Data

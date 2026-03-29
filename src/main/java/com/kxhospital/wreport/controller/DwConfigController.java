@@ -1,11 +1,13 @@
 package com.kxhospital.wreport.controller;
 
+import com.kxhospital.wreport.cache.DwRegionCache;
 import com.kxhospital.wreport.common.LoginUser;
 import com.kxhospital.wreport.common.R;
 import com.kxhospital.wreport.common.UserContext;
 import com.kxhospital.wreport.entity.DwFieldConfig;
 import com.kxhospital.wreport.entity.DwModuleConfig;
 import com.kxhospital.wreport.pojo.response.DwModuleConfigVO;
+import com.kxhospital.wreport.pojo.response.GuidanceRegionsVO;
 import com.kxhospital.wreport.service.DwConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -25,6 +27,22 @@ import java.util.Map;
 public class DwConfigController {
 
     private final DwConfigService configService;
+    private final DwRegionCache   regionCache;
+
+    // ── 质控指导地区树（任何已登录用户均可调用） ───────────────────────────────────
+
+    @Operation(summary = "获取质控指导地区树",
+               description = "返回两棵树：\n" +
+                             "- cityTree：省→市级质控中心（11 个平铺叶节点），用于勾选市级中心数量\n" +
+                             "- countyTree：省→市→区县两级树，用于勾选县级中心数量\n\n" +
+                             "数据启动时一次性加载，常驻内存，接口响应极快。\n\n" +
+                             "前端计数：cityCenterCount = cityTree 中被勾选节点数；\n" +
+                             "countyCenterCount = countyTree 中被勾选的叶节点（区县）数。")
+    @GetMapping("/guidance/regions")
+    public R<GuidanceRegionsVO> guidanceRegions() {
+        user(); // 仅校验登录状态
+        return R.ok(regionCache.get());
+    }
 
     // ── 模块配置查询（管理员 + 机构均可调用，权限不同返回不同字段） ──────────────
 

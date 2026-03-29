@@ -8,9 +8,11 @@ import com.kxhospital.wreport.config.MinioService;
 import com.kxhospital.wreport.entity.*;
 import com.kxhospital.wreport.mapper.*;
 import com.kxhospital.wreport.pojo.request.*;
+import com.kxhospital.wreport.cache.DwRegionCache;
 import com.kxhospital.wreport.pojo.response.DwAttachmentVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO.*;
+import com.kxhospital.wreport.pojo.response.RegionNodeVO;
 import com.kxhospital.wreport.service.DwRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +43,7 @@ public class DwRecordServiceImpl implements DwRecordService {
     private final MinioService       minioService;
     private final MinioProperties    minioProps;
     private final com.kxhospital.wreport.service.DwConfigService configService;
+    private final DwRegionCache      regionCache;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -388,11 +391,15 @@ public class DwRecordServiceImpl implements DwRecordService {
             return tv;
         }).collect(Collectors.toList()));
 
-        // 质控指导
+        // 质控指导（含市/县质控中心名称反查及分组，数据来自内存缓存）
+        Map<Integer, String> regionMap = buildRegionMap();
         vo.setGuidances(guidanceMapper.listByRecord(rid).stream().map(g -> {
             DwGuidanceVO gv = new DwGuidanceVO();
             BeanUtils.copyProperties(g, gv);
             gv.setGuidanceTime(g.getGuidanceTime() != null ? g.getGuidanceTime().format(DATE_FMT) : null);
+            gv.setCityCenterNames(resolveRegionNames(g.getCityCenterIds(), regionMap));
+            gv.setCountyCenterNames(resolveRegionNames(g.getCountyCenterIds(), regionMap));
+            gv.setCountyCenterGroups(groupCountyCenters(g.getCountyCenterIds(), regionMap));
             gv.setEvidences(toVOList(attMap.get("guidance|" + g.getId() + "|evidence")));
             gv.setExtraValues(extraMap.getOrDefault("guidance|" + g.getId(), Collections.emptyMap()));
             return gv;
@@ -479,4 +486,85 @@ public class DwRecordServiceImpl implements DwRecordService {
 
     private int nvl(Integer v) { return v == null ? 0 : v; }
     private String nvlId(Long v) { return v == null ? "null" : String.valueOf(v); }
+
+    /**
+     * 从内存缓存构建 regionId → name 全量查找表。
+     * 每次 buildDetail 调用一次，整个方法内复用，无 DB 访问。
+     */
+    private Map<Integer, String> buildRegionMap() {
+        Map<Integer, String> map = new HashMap<>();
+        com.kxhospital.wreport.pojo.response.GuidanceRegionsVO regions = regionCache.get();
+        if (regions == null) return map;
+        if (regions.getCityTree() != null) {
+            for (RegionNodeVO node : regions.getCityTree()) {
+                map.put(node.getId(), node.getName());
+            }
+        }
+        if (regions.getCountyTree() != null) {
+            for (RegionNodeVO city : regions.getCountyTree()) {
+                map.put(city.getId(), city.getName());
+                if (city.getChildren() != null) {
+                    for (RegionNodeVO county : city.getChildren()) {
+                        map.put(county.getId(), county.getName());
+                    }
+                }
+            }
+        }
+        return map;
+    }
+
+    /**
+     * 将县级中心 ID 列表按所属市分组。
+     * ID 规则：区县 ID ÷ 100 = 所属市节点 ID（如 20101 ÷ 100 = 201 = 杭州市）。
+     * 分组顺序依照原始 ID 首次出现的市顺序，组内顺序保持原始顺序。
+     */
+    private List<DwRecordDetailVO.CountyCenterGroupVO> groupCountyCenters(
+            String jsonIds, Map<Integer, String> regionMap) {
+        if (jsonIds == null || jsonIds.trim().isEmpty()) return Collections.emptyList();
+        String trimmed = jsonIds.trim().replaceAll("[\\[\\]\\s]", "");
+        if (trimmed.isEmpty() || "null".equals(trimmed)) return Collections.emptyList();
+
+        // 按市节点 ID 有序分组（LinkedHashMap 保持首次出现顺序）
+        Map<Integer, List<String>> grouped = new LinkedHashMap<>();
+        for (String s : trimmed.split(",")) {
+            if (s.isEmpty()) continue;
+            try {
+                int countyId = Integer.parseInt(s);
+                int cityId   = countyId / 100;          // 20101 → 201
+                String countyName = regionMap.getOrDefault(countyId, s);
+                grouped.computeIfAbsent(cityId, k -> new ArrayList<>()).add(countyName);
+            } catch (NumberFormatException ignored) { }
+        }
+
+        List<DwRecordDetailVO.CountyCenterGroupVO> result = new ArrayList<>();
+        for (Map.Entry<Integer, List<String>> entry : grouped.entrySet()) {
+            DwRecordDetailVO.CountyCenterGroupVO g = new DwRecordDetailVO.CountyCenterGroupVO();
+            g.setCityName(regionMap.getOrDefault(entry.getKey(), String.valueOf(entry.getKey())));
+            g.setCounties(entry.getValue());
+            result.add(g);
+        }
+        return result;
+    }
+
+    /**
+     * 将 JSON 整数数组字符串（如 "[101,103]"）解析并映射为名称列表。
+     * 若某 ID 不在 regionMap 中则原样保留 ID 字符串，保证数据不丢失。
+     */
+    private List<String> resolveRegionNames(String jsonIds, Map<Integer, String> regionMap) {
+        if (jsonIds == null || jsonIds.trim().isEmpty()) return Collections.emptyList();
+        String trimmed = jsonIds.trim();
+        if ("[]".equals(trimmed) || "null".equals(trimmed)) return Collections.emptyList();
+        trimmed = trimmed.replaceAll("[\\[\\]\\s]", "");
+        if (trimmed.isEmpty()) return Collections.emptyList();
+        return Arrays.stream(trimmed.split(","))
+                .filter(s -> !s.isEmpty())
+                .map(s -> {
+                    try {
+                        return regionMap.getOrDefault(Integer.parseInt(s), s);
+                    } catch (NumberFormatException e) {
+                        return s;
+                    }
+                })
+                .collect(Collectors.toList());
+    }
 }

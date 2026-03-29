@@ -22,7 +22,9 @@ public class DwModuleConfig implements Serializable {
     private String moduleName;
     /** 该模块满分（含加分项），可调整 */
     private BigDecimal scoreMax;
-    /** 评分规则说明（仅管理员可见），自由文本或 JSON */
+    /** 公开版考核说明（机构可见），来自评分表原文，去掉具体分值 */
+    private String scoreDesc;
+    /** 完整评分规则（仅管理员可见），含具体得分数字 */
     private String scoreRule;
     /** 是否启用该模块（false 时前端不展示） */
     private Boolean isEnabled;
