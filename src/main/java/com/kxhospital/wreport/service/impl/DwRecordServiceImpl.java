@@ -578,19 +578,36 @@ public class DwRecordServiceImpl implements DwRecordService {
     @Override
     public DwAdminOverviewVO adminOverview(Long taskId) {
         // 1. 获取任务范围内所有机构（含尚未填报的），并附带当前记录状态
-        List<com.kxhospital.wreport.pojo.response.TaskScopeOrgVO> scopeList =
-                taskOrgScopeMapper.selectScopeWithStatus(taskId);
+        List<TaskScopeOrgVO> scopeList = taskOrgScopeMapper.selectScopeWithStatus(taskId);
 
-        // 2. 批量获取已存在的 wr_record（用于取 recordId 和 orgId 映射）
+        // 2. 批量获取已存在的 wr_record
         List<WrRecord> records = recordMapper.selectByTaskId(taskId);
         Map<Long, WrRecord> recordByOrg = records.stream()
                 .collect(Collectors.toMap(WrRecord::getOrgId, r -> r, (a, b) -> a));
 
-        // 3. 逐机构构建明细行，并汇总状态计数
+        // 3. 批量查各模块计数（5 条 SQL 代替 N×5 条）
+        List<Long> recordIds = records.stream().map(WrRecord::getId).collect(Collectors.toList());
+        Map<Long, Integer> meetingCounts  = Collections.emptyMap();
+        Map<Long, Integer> trainingCounts = Collections.emptyMap();
+        Map<Long, Integer> guidanceCounts = Collections.emptyMap();
+        Map<Long, Integer> surveyCounts   = Collections.emptyMap();
+        Map<Long, Integer> bonusCounts    = Collections.emptyMap();
+        java.util.Set<Long> fundingSet    = Collections.emptySet();
+
+        if (!recordIds.isEmpty()) {
+            meetingCounts  = toCountMap(meetingMapper.countByRecordIds(recordIds));
+            trainingCounts = toCountMap(trainingMapper.countByRecordIds(recordIds));
+            guidanceCounts = toCountMap(guidanceMapper.countByRecordIds(recordIds));
+            surveyCounts   = toCountMap(surveyMapper.countByRecordIds(recordIds));
+            bonusCounts    = toCountMap(bonusMapper.countByRecordIds(recordIds));
+            fundingSet     = new java.util.HashSet<>(fundingMapper.existingRecordIds(recordIds));
+        }
+
+        // 4. 组装结果
         long notStarted = 0, draft = 0, submitted = 0, approved = 0, rejected = 0;
         List<DwAdminOverviewVO.OrgRow> orgRows = new ArrayList<>();
 
-        for (com.kxhospital.wreport.pojo.response.TaskScopeOrgVO scope : scopeList) {
+        for (TaskScopeOrgVO scope : scopeList) {
             DwAdminOverviewVO.OrgRow row = new DwAdminOverviewVO.OrgRow();
             row.setOrgId(scope.getOrgId());
             row.setOrgName(scope.getOrgName());
@@ -602,7 +619,8 @@ public class DwRecordServiceImpl implements DwRecordService {
                 row.setStatusLabel("未开始");
                 notStarted++;
             } else {
-                row.setRecordId(rec.getId());
+                Long rid = rec.getId();
+                row.setRecordId(rid);
                 row.setStatus(rec.getStatus());
                 row.setStatusLabel(dwStatusLabel(rec.getStatus()));
                 switch (rec.getStatus()) {
@@ -612,21 +630,12 @@ public class DwRecordServiceImpl implements DwRecordService {
                     case 3: rejected++;  break;
                     default: break;
                 }
-
-                // 各模块数据量
-                Long rid = rec.getId();
-                row.setMeetingCount(meetingMapper.selectCount(
-                        new LambdaQueryWrapper<DwMeeting>().eq(DwMeeting::getRecordId, rid)).intValue());
-                row.setTrainingCount(trainingMapper.selectCount(
-                        new LambdaQueryWrapper<DwTraining>().eq(DwTraining::getRecordId, rid)).intValue());
-                row.setGuidanceCount(guidanceMapper.selectCount(
-                        new LambdaQueryWrapper<DwGuidance>().eq(DwGuidance::getRecordId, rid)).intValue());
-                row.setSurveyCount(surveyMapper.selectCount(
-                        new LambdaQueryWrapper<DwSurvey>().eq(DwSurvey::getRecordId, rid)).intValue());
-                row.setHasFunding(fundingMapper.selectCount(
-                        new LambdaQueryWrapper<DwFunding>().eq(DwFunding::getRecordId, rid)) > 0);
-                row.setBonusCount(bonusMapper.selectCount(
-                        new LambdaQueryWrapper<DwBonus>().eq(DwBonus::getRecordId, rid)).intValue());
+                row.setMeetingCount(meetingCounts.getOrDefault(rid, 0));
+                row.setTrainingCount(trainingCounts.getOrDefault(rid, 0));
+                row.setGuidanceCount(guidanceCounts.getOrDefault(rid, 0));
+                row.setSurveyCount(surveyCounts.getOrDefault(rid, 0));
+                row.setHasFunding(fundingSet.contains(rid));
+                row.setBonusCount(bonusCounts.getOrDefault(rid, 0));
             }
             orgRows.add(row);
         }
@@ -640,6 +649,23 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setRejected(rejected);
         vo.setOrgRows(orgRows);
         return vo;
+    }
+
+    /**
+     * 将 [{recordid: x, cnt: n}, ...] 转为 Map<recordId, count>。
+     * PostgreSQL 默认返回小写列名，兼容大小写查找。
+     */
+    private Map<Long, Integer> toCountMap(List<Map<String, Object>> rows) {
+        Map<Long, Integer> map = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            // PostgreSQL 列别名统一小写；MyBatis 传回的 key 可能是 recordid 或 recordId
+            Object rid = row.get("rid");
+            Object cnt = row.get("cnt");
+            if (rid != null && cnt != null) {
+                map.put(((Number) rid).longValue(), ((Number) cnt).intValue());
+            }
+        }
+        return map;
     }
 
     private String dwStatusLabel(Integer status) {
