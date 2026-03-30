@@ -29,7 +29,12 @@ public class DwBonus implements Serializable {
     private String compName;
     /** 'provincial_joint'=省总工会+省卫健委联合  'other'=其他形式 */
     private String compSponsor;
-    private LocalDate compDate;
+    private LocalDate compStartDate;
+    /** AM/PM */
+    private String compStartHalf;
+    private LocalDate compEndDate;
+    /** AM/PM */
+    private String compEndHalf;
     @TableLogic(value = "0", delval = "1") private Integer delFlag;
     @TableField(fill = FieldFill.INSERT) private Long createUser;
     @TableField(fill = FieldFill.INSERT) private LocalDateTime createTime;

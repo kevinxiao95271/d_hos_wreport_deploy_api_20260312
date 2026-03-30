@@ -15,5 +15,10 @@ public class DwBonusRequest {
     private String compName;
     /** 'provincial_joint' | 'other' */
     private String compSponsor;
-    private LocalDate compDate;
+    private LocalDate compStartDate;
+    /** AM/PM */
+    private String compStartHalf;
+    private LocalDate compEndDate;
+    /** AM/PM */
+    private String compEndHalf;
 }

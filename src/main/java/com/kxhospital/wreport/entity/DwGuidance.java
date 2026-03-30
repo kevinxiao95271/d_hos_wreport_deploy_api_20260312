@@ -20,7 +20,12 @@ import java.time.LocalDateTime;
 public class DwGuidance implements Serializable {
     @TableId(value = "id", type = IdType.ASSIGN_ID) private Long id;
     private Long recordId;
-    private LocalDate guidanceTime;
+    private LocalDate guidanceStartDate;
+    /** AM/PM */
+    private String guidanceStartHalf;
+    private LocalDate guidanceEndDate;
+    /** AM/PM */
+    private String guidanceEndHalf;
     /** 'online'=线上  'onsite'=现场 */
     private String guidanceForm;
     private String guidanceContent;

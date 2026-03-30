@@ -15,7 +15,12 @@ public class DwTraining implements Serializable {
     @TableId(value = "id", type = IdType.ASSIGN_ID) private Long id;
     private Long recordId;
     private String trainingName;
-    private LocalDate trainingTime;
+    private LocalDate trainingStartDate;
+    /** AM/PM */
+    private String trainingStartHalf;
+    private LocalDate trainingEndDate;
+    /** AM/PM */
+    private String trainingEndHalf;
     /** 'online'=线上  'offline'=线下 */
     private String trainingForm;
     private String trainingContent;

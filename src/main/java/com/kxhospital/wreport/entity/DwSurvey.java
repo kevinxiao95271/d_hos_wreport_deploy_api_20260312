@@ -13,7 +13,12 @@ import java.time.LocalDateTime;
 public class DwSurvey implements Serializable {
     @TableId(value = "id", type = IdType.ASSIGN_ID) private Long id;
     private Long recordId;
-    private LocalDate surveyTime;
+    private LocalDate surveyStartDate;
+    /** AM/PM */
+    private String surveyStartHalf;
+    private LocalDate surveyEndDate;
+    /** AM/PM */
+    private String surveyEndHalf;
     private String surveyTarget;
     /** 'baseline'=基线调研  'special'=专项调研 */
     private String surveyType;

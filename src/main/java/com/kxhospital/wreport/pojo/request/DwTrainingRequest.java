@@ -9,7 +9,12 @@ public class DwTrainingRequest {
     private Long id;
     private Long recordId;
     private String trainingName;
-    private LocalDate trainingTime;
+    private LocalDate trainingStartDate;
+    /** AM/PM */
+    private String trainingStartHalf;
+    private LocalDate trainingEndDate;
+    /** AM/PM */
+    private String trainingEndHalf;
     /** 'online' | 'offline' */
     private String trainingForm;
     private String trainingContent;

@@ -209,11 +209,15 @@ CREATE TABLE IF NOT EXISTS dw_meeting (
     id               BIGINT        NOT NULL,
     record_id        BIGINT        NOT NULL,  -- 关联 wr_record.id
     meeting_name     VARCHAR(200)  NOT NULL,
-    meeting_time     DATE          NOT NULL,
+    meeting_start_date DATE          NOT NULL,
+    meeting_start_half VARCHAR(2), -- AM/PM
+    meeting_end_date   DATE          NOT NULL,
+    meeting_end_half   VARCHAR(2), -- AM/PM
     meeting_form     VARCHAR(20)   NOT NULL,  -- 'online'=线上 'offline'=线下
     meeting_content  TEXT          NOT NULL,
     attendee_count   INT           NOT NULL DEFAULT 0,
     attendance_rate  NUMERIC(5,2)  NOT NULL DEFAULT 0, -- 参会率（%）
+    self_score       NUMERIC(5,2),                     -- 填报者自评分（可为空）
     del_flag         SMALLINT      NOT NULL DEFAULT 0,
     create_user      BIGINT,
     create_time      TIMESTAMP     NOT NULL DEFAULT NOW(),
@@ -221,13 +225,38 @@ CREATE TABLE IF NOT EXISTS dw_meeting (
     CONSTRAINT pk_dw_meeting PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS idx_dw_meeting_rid ON dw_meeting(record_id);
+ALTER TABLE dw_meeting ADD COLUMN IF NOT EXISTS self_score NUMERIC(5,2);
+ALTER TABLE dw_meeting ADD COLUMN IF NOT EXISTS meeting_start_date DATE;
+ALTER TABLE dw_meeting ADD COLUMN IF NOT EXISTS meeting_start_half VARCHAR(2);
+ALTER TABLE dw_meeting ADD COLUMN IF NOT EXISTS meeting_end_date DATE;
+ALTER TABLE dw_meeting ADD COLUMN IF NOT EXISTS meeting_end_half VARCHAR(2);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'dw_meeting'
+          AND column_name = 'meeting_time'
+    ) THEN
+        UPDATE dw_meeting
+           SET meeting_start_date = COALESCE(meeting_start_date, meeting_time),
+               meeting_end_date   = COALESCE(meeting_end_date, meeting_time),
+               meeting_start_half = COALESCE(meeting_start_half, 'AM'),
+               meeting_end_half   = COALESCE(meeting_end_half, 'PM');
+        ALTER TABLE dw_meeting DROP COLUMN IF EXISTS meeting_time;
+    END IF;
+END
+$$;
 
 -- ② 质控培训（多条记录）
 CREATE TABLE IF NOT EXISTS dw_training (
     id               BIGINT        NOT NULL,
     record_id        BIGINT        NOT NULL,
     training_name    VARCHAR(200)  NOT NULL,
-    training_time    DATE          NOT NULL,
+    training_start_date DATE          NOT NULL,
+    training_start_half VARCHAR(2), -- AM/PM
+    training_end_date   DATE          NOT NULL,
+    training_end_half   VARCHAR(2), -- AM/PM
     training_form    VARCHAR(20)   NOT NULL,  -- 'online'=线上 'offline'=线下
     training_content TEXT          NOT NULL,
     attendee_count   INT           NOT NULL DEFAULT 0,
@@ -239,6 +268,27 @@ CREATE TABLE IF NOT EXISTS dw_training (
     CONSTRAINT pk_dw_training PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS idx_dw_training_rid ON dw_training(record_id);
+ALTER TABLE dw_training ADD COLUMN IF NOT EXISTS training_start_date DATE;
+ALTER TABLE dw_training ADD COLUMN IF NOT EXISTS training_start_half VARCHAR(2);
+ALTER TABLE dw_training ADD COLUMN IF NOT EXISTS training_end_date DATE;
+ALTER TABLE dw_training ADD COLUMN IF NOT EXISTS training_end_half VARCHAR(2);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'dw_training'
+          AND column_name = 'training_time'
+    ) THEN
+        UPDATE dw_training
+           SET training_start_date = COALESCE(training_start_date, training_time),
+               training_end_date   = COALESCE(training_end_date, training_time),
+               training_start_half = COALESCE(training_start_half, 'AM'),
+               training_end_half   = COALESCE(training_end_half, 'PM');
+        ALTER TABLE dw_training DROP COLUMN IF EXISTS training_time;
+    END IF;
+END
+$$;
 
 -- ③ 质控指导（多条记录）
 --    市级质控中心：省→市 两级树勾选，末级节点数自动统计
@@ -248,7 +298,10 @@ CREATE INDEX IF NOT EXISTS idx_dw_training_rid ON dw_training(record_id);
 CREATE TABLE IF NOT EXISTS dw_guidance (
     id                   BIGINT        NOT NULL,
     record_id            BIGINT        NOT NULL,
-    guidance_time        DATE          NOT NULL,
+    guidance_start_date  DATE          NOT NULL,
+    guidance_start_half  VARCHAR(2), -- AM/PM
+    guidance_end_date    DATE          NOT NULL,
+    guidance_end_half    VARCHAR(2), -- AM/PM
     guidance_form        VARCHAR(20)   NOT NULL,  -- 'online'=线上 'onsite'=现场
     guidance_content     TEXT          NOT NULL,
     city_center_count    INT           NOT NULL DEFAULT 0, -- 市级质控中心数量
@@ -264,12 +317,36 @@ CREATE TABLE IF NOT EXISTS dw_guidance (
     CONSTRAINT ck_dw_guidance_nz CHECK (city_center_count + county_center_count + hospital_count > 0)
 );
 CREATE INDEX IF NOT EXISTS idx_dw_guidance_rid ON dw_guidance(record_id);
+ALTER TABLE dw_guidance ADD COLUMN IF NOT EXISTS guidance_start_date DATE;
+ALTER TABLE dw_guidance ADD COLUMN IF NOT EXISTS guidance_start_half VARCHAR(2);
+ALTER TABLE dw_guidance ADD COLUMN IF NOT EXISTS guidance_end_date DATE;
+ALTER TABLE dw_guidance ADD COLUMN IF NOT EXISTS guidance_end_half VARCHAR(2);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'dw_guidance'
+          AND column_name = 'guidance_time'
+    ) THEN
+        UPDATE dw_guidance
+           SET guidance_start_date = COALESCE(guidance_start_date, guidance_time),
+               guidance_end_date   = COALESCE(guidance_end_date, guidance_time),
+               guidance_start_half = COALESCE(guidance_start_half, 'AM'),
+               guidance_end_half   = COALESCE(guidance_end_half, 'PM');
+        ALTER TABLE dw_guidance DROP COLUMN IF EXISTS guidance_time;
+    END IF;
+END
+$$;
 
 -- ④ 质控调研（多条记录）
 CREATE TABLE IF NOT EXISTS dw_survey (
     id               BIGINT        NOT NULL,
     record_id        BIGINT        NOT NULL,
-    survey_time      DATE          NOT NULL,
+    survey_start_date DATE          NOT NULL,
+    survey_start_half VARCHAR(2), -- AM/PM
+    survey_end_date   DATE          NOT NULL,
+    survey_end_half   VARCHAR(2), -- AM/PM
     survey_target    VARCHAR(300)  NOT NULL,  -- 调研对象
     survey_type      VARCHAR(20)   NOT NULL,  -- 'baseline'=基线调研 'special'=专项调研
     survey_form      VARCHAR(20)   NOT NULL,  -- 'online'=线上 'offline'=线下
@@ -281,6 +358,27 @@ CREATE TABLE IF NOT EXISTS dw_survey (
     CONSTRAINT pk_dw_survey PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS idx_dw_survey_rid ON dw_survey(record_id);
+ALTER TABLE dw_survey ADD COLUMN IF NOT EXISTS survey_start_date DATE;
+ALTER TABLE dw_survey ADD COLUMN IF NOT EXISTS survey_start_half VARCHAR(2);
+ALTER TABLE dw_survey ADD COLUMN IF NOT EXISTS survey_end_date DATE;
+ALTER TABLE dw_survey ADD COLUMN IF NOT EXISTS survey_end_half VARCHAR(2);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'dw_survey'
+          AND column_name = 'survey_time'
+    ) THEN
+        UPDATE dw_survey
+           SET survey_start_date = COALESCE(survey_start_date, survey_time),
+               survey_end_date   = COALESCE(survey_end_date, survey_time),
+               survey_start_half = COALESCE(survey_start_half, 'AM'),
+               survey_end_half   = COALESCE(survey_end_half, 'PM');
+        ALTER TABLE dw_survey DROP COLUMN IF EXISTS survey_time;
+    END IF;
+END
+$$;
 
 -- ⑤ 经费执行（每个 record 只有一条，第四季度填写）
 --    fiscal_execution_rate：≥90%→3分；<90%→0分
@@ -312,7 +410,10 @@ CREATE TABLE IF NOT EXISTS dw_bonus (
     pub_date      DATE,                  -- 限 2024-2025 年
     comp_name     VARCHAR(300),
     comp_sponsor  VARCHAR(30),
-    comp_date     DATE,                  -- 限 2024-2025 年
+    comp_start_date DATE,
+    comp_start_half VARCHAR(2), -- AM/PM
+    comp_end_date   DATE,
+    comp_end_half   VARCHAR(2), -- AM/PM
     del_flag      SMALLINT      NOT NULL DEFAULT 0,
     create_user   BIGINT,
     create_time   TIMESTAMP     NOT NULL DEFAULT NOW(),
@@ -321,6 +422,28 @@ CREATE TABLE IF NOT EXISTS dw_bonus (
     CONSTRAINT uq_dw_bonus_type UNIQUE (record_id, bonus_type)
 );
 CREATE INDEX IF NOT EXISTS idx_dw_bonus_rid ON dw_bonus(record_id);
+ALTER TABLE dw_bonus ADD COLUMN IF NOT EXISTS comp_start_date DATE;
+ALTER TABLE dw_bonus ADD COLUMN IF NOT EXISTS comp_start_half VARCHAR(2);
+ALTER TABLE dw_bonus ADD COLUMN IF NOT EXISTS comp_end_date DATE;
+ALTER TABLE dw_bonus ADD COLUMN IF NOT EXISTS comp_end_half VARCHAR(2);
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'dw_bonus'
+          AND column_name = 'comp_date'
+    ) THEN
+        UPDATE dw_bonus
+           SET comp_start_date = COALESCE(comp_start_date, comp_date),
+               comp_end_date   = COALESCE(comp_end_date, comp_date),
+               comp_start_half = COALESCE(comp_start_half, 'AM'),
+               comp_end_half   = COALESCE(comp_end_half, 'PM')
+         WHERE bonus_type = 'competition';
+        ALTER TABLE dw_bonus DROP COLUMN IF EXISTS comp_date;
+    END IF;
+END
+$$;
 
 -- ⑦ 日常工作附件表
 --    文件实体存 MinIO，此处只存 URL + 元数据

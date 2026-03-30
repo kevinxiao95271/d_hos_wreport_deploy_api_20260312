@@ -7,7 +7,12 @@ import java.time.LocalDate;
 public class DwSurveyRequest {
     private Long id;
     private Long recordId;
-    private LocalDate surveyTime;
+    private LocalDate surveyStartDate;
+    /** AM/PM */
+    private String surveyStartHalf;
+    private LocalDate surveyEndDate;
+    /** AM/PM */
+    private String surveyEndHalf;
     private String surveyTarget;
     /** 'baseline' | 'special' */
     private String surveyType;

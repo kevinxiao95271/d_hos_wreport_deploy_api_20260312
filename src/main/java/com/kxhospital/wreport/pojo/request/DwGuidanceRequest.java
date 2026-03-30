@@ -7,7 +7,12 @@ import java.time.LocalDate;
 public class DwGuidanceRequest {
     private Long id;
     private Long recordId;
-    private LocalDate guidanceTime;
+    private LocalDate guidanceStartDate;
+    /** AM/PM */
+    private String guidanceStartHalf;
+    private LocalDate guidanceEndDate;
+    /** AM/PM */
+    private String guidanceEndHalf;
     /** 'online' | 'onsite' */
     private String guidanceForm;
     private String guidanceContent;

@@ -61,11 +61,16 @@ public class DwRecordDetailVO {
         @JsonSerialize(using = ToStringSerializer.class)
         private Long id;
         private String meetingName;
-        private String meetingTime;
+        private String meetingStartDate;
+        private String meetingStartHalf;
+        private String meetingEndDate;
+        private String meetingEndHalf;
         private String meetingForm;
         private String meetingContent;
         private Integer attendeeCount;
         private java.math.BigDecimal attendanceRate;
+        /** 填报者自评分（可为空） */
+        private java.math.BigDecimal selfScore;
         private List<DwAttachmentVO> minutes;
         private List<DwAttachmentVO> photos;
         private List<DwAttachmentVO> signins;
@@ -78,7 +83,10 @@ public class DwRecordDetailVO {
         @JsonSerialize(using = ToStringSerializer.class)
         private Long id;
         private String trainingName;
-        private String trainingTime;
+        private String trainingStartDate;
+        private String trainingStartHalf;
+        private String trainingEndDate;
+        private String trainingEndHalf;
         private String trainingForm;
         private String trainingContent;
         private Integer attendeeCount;
@@ -92,7 +100,10 @@ public class DwRecordDetailVO {
     public static class DwGuidanceVO {
         @JsonSerialize(using = ToStringSerializer.class)
         private Long id;
-        private String guidanceTime;
+        private String guidanceStartDate;
+        private String guidanceStartHalf;
+        private String guidanceEndDate;
+        private String guidanceEndHalf;
         private String guidanceForm;
         private String guidanceContent;
         private Integer cityCenterCount;
@@ -125,7 +136,10 @@ public class DwRecordDetailVO {
     public static class DwSurveyVO {
         @JsonSerialize(using = ToStringSerializer.class)
         private Long id;
-        private String surveyTime;
+        private String surveyStartDate;
+        private String surveyStartHalf;
+        private String surveyEndDate;
+        private String surveyEndHalf;
         private String surveyTarget;
         private String surveyType;
         private String surveyForm;
@@ -145,7 +159,10 @@ public class DwRecordDetailVO {
         private String pubDate;
         private String compName;
         private String compSponsor;
-        private String compDate;
+        private String compStartDate;
+        private String compStartHalf;
+        private String compEndDate;
+        private String compEndHalf;
         private List<DwAttachmentVO> evidences;
         private Map<String, String> extraValues;
     }

@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -102,6 +103,10 @@ public class DwRecordServiceImpl implements DwRecordService {
     @Transactional
     public DwMeeting saveMeeting(DwMeetingRequest req, LoginUser user) {
         requireEditableRecord(req.getRecordId(), user);
+        HalfDayRange meetingRange = normalizeHalfDayRange(
+                req.getMeetingStartDate(), req.getMeetingStartHalf(),
+                req.getMeetingEndDate(), req.getMeetingEndHalf(),
+                "会议时间");
         DwMeeting entity;
         if (req.getId() != null) {
             entity = meetingMapper.selectById(req.getId());
@@ -110,6 +115,10 @@ public class DwRecordServiceImpl implements DwRecordService {
             entity = new DwMeeting();
         }
         BeanUtils.copyProperties(req, entity, "id");
+        entity.setMeetingStartDate(meetingRange.startDate);
+        entity.setMeetingStartHalf(meetingRange.startHalf);
+        entity.setMeetingEndDate(meetingRange.endDate);
+        entity.setMeetingEndHalf(meetingRange.endHalf);
         if (req.getId() == null) meetingMapper.insert(entity);
         else meetingMapper.updateById(entity);
         return entity;
@@ -136,6 +145,10 @@ public class DwRecordServiceImpl implements DwRecordService {
     @Transactional
     public DwTraining saveTraining(DwTrainingRequest req, LoginUser user) {
         requireEditableRecord(req.getRecordId(), user);
+        HalfDayRange trainingRange = normalizeHalfDayRange(
+                req.getTrainingStartDate(), req.getTrainingStartHalf(),
+                req.getTrainingEndDate(), req.getTrainingEndHalf(),
+                "培训时间");
         DwTraining entity;
         if (req.getId() != null) {
             entity = trainingMapper.selectById(req.getId());
@@ -144,6 +157,10 @@ public class DwRecordServiceImpl implements DwRecordService {
             entity = new DwTraining();
         }
         BeanUtils.copyProperties(req, entity, "id");
+        entity.setTrainingStartDate(trainingRange.startDate);
+        entity.setTrainingStartHalf(trainingRange.startHalf);
+        entity.setTrainingEndDate(trainingRange.endDate);
+        entity.setTrainingEndHalf(trainingRange.endHalf);
         if (req.getId() == null) trainingMapper.insert(entity);
         else trainingMapper.updateById(entity);
         return entity;
@@ -169,6 +186,10 @@ public class DwRecordServiceImpl implements DwRecordService {
     @Transactional
     public DwGuidance saveGuidance(DwGuidanceRequest req, LoginUser user) {
         requireEditableRecord(req.getRecordId(), user);
+        HalfDayRange guidanceRange = normalizeHalfDayRange(
+                req.getGuidanceStartDate(), req.getGuidanceStartHalf(),
+                req.getGuidanceEndDate(), req.getGuidanceEndHalf(),
+                "指导时间");
         int total = nvl(req.getCityCenterCount()) + nvl(req.getCountyCenterCount()) + nvl(req.getHospitalCount());
         if (total <= 0) throw new BusinessException(400, "市级中心数、县级中心数、医疗机构数不能全为 0");
         DwGuidance entity;
@@ -179,6 +200,10 @@ public class DwRecordServiceImpl implements DwRecordService {
             entity = new DwGuidance();
         }
         BeanUtils.copyProperties(req, entity, "id");
+        entity.setGuidanceStartDate(guidanceRange.startDate);
+        entity.setGuidanceStartHalf(guidanceRange.startHalf);
+        entity.setGuidanceEndDate(guidanceRange.endDate);
+        entity.setGuidanceEndHalf(guidanceRange.endHalf);
         if (req.getId() == null) guidanceMapper.insert(entity);
         else guidanceMapper.updateById(entity);
         return entity;
@@ -204,6 +229,10 @@ public class DwRecordServiceImpl implements DwRecordService {
     @Transactional
     public DwSurvey saveSurvey(DwSurveyRequest req, LoginUser user) {
         requireEditableRecord(req.getRecordId(), user);
+        HalfDayRange surveyRange = normalizeHalfDayRange(
+                req.getSurveyStartDate(), req.getSurveyStartHalf(),
+                req.getSurveyEndDate(), req.getSurveyEndHalf(),
+                "调研时间");
         DwSurvey entity;
         if (req.getId() != null) {
             entity = surveyMapper.selectById(req.getId());
@@ -212,6 +241,10 @@ public class DwRecordServiceImpl implements DwRecordService {
             entity = new DwSurvey();
         }
         BeanUtils.copyProperties(req, entity, "id");
+        entity.setSurveyStartDate(surveyRange.startDate);
+        entity.setSurveyStartHalf(surveyRange.startHalf);
+        entity.setSurveyEndDate(surveyRange.endDate);
+        entity.setSurveyEndHalf(surveyRange.endHalf);
         if (req.getId() == null) surveyMapper.insert(entity);
         else surveyMapper.updateById(entity);
         return entity;
@@ -253,12 +286,30 @@ public class DwRecordServiceImpl implements DwRecordService {
     @Transactional
     public DwBonus saveBonus(DwBonusRequest req, LoginUser user) {
         requireEditableRecord(req.getRecordId(), user);
+        if ("publication".equals(req.getBonusType()) && req.getPubDate() == null) {
+            throw new BusinessException(400, "出版日期不能为空");
+        }
+        HalfDayRange compRange = normalizeHalfDayRange(
+                req.getCompStartDate(), req.getCompStartHalf(),
+                req.getCompEndDate(), req.getCompEndHalf(),
+                "competition".equals(req.getBonusType()) ? "竞赛举办时间" : null);
         DwBonus existing = bonusMapper.selectOne(new LambdaQueryWrapper<DwBonus>()
                 .eq(DwBonus::getRecordId, req.getRecordId())
                 .eq(DwBonus::getBonusType, req.getBonusType())
                 .eq(DwBonus::getDelFlag, 0));
         DwBonus entity = existing != null ? existing : new DwBonus();
         BeanUtils.copyProperties(req, entity, "id");
+        if ("competition".equals(req.getBonusType())) {
+            entity.setCompStartDate(compRange.startDate);
+            entity.setCompStartHalf(compRange.startHalf);
+            entity.setCompEndDate(compRange.endDate);
+            entity.setCompEndHalf(compRange.endHalf);
+        } else {
+            entity.setCompStartDate(null);
+            entity.setCompStartHalf(null);
+            entity.setCompEndDate(null);
+            entity.setCompEndHalf(null);
+        }
         if (existing == null) bonusMapper.insert(entity);
         else bonusMapper.updateById(entity);
         return entity;
@@ -375,7 +426,8 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setMeetings(meetingMapper.listByRecord(rid).stream().map(m -> {
             DwMeetingVO mv = new DwMeetingVO();
             BeanUtils.copyProperties(m, mv);
-            mv.setMeetingTime(m.getMeetingTime() != null ? m.getMeetingTime().format(DATE_FMT) : null);
+            mv.setMeetingStartDate(formatDate(m.getMeetingStartDate()));
+            mv.setMeetingEndDate(formatDate(m.getMeetingEndDate()));
             mv.setMinutes(toVOList(attMap.get("meeting|" + m.getId() + "|minutes")));
             mv.setPhotos(toVOList(attMap.get("meeting|" + m.getId() + "|photo")));
             mv.setSignins(toVOList(attMap.get("meeting|" + m.getId() + "|signin")));
@@ -387,7 +439,8 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setTrainings(trainingMapper.listByRecord(rid).stream().map(t -> {
             DwTrainingVO tv = new DwTrainingVO();
             BeanUtils.copyProperties(t, tv);
-            tv.setTrainingTime(t.getTrainingTime() != null ? t.getTrainingTime().format(DATE_FMT) : null);
+            tv.setTrainingStartDate(formatDate(t.getTrainingStartDate()));
+            tv.setTrainingEndDate(formatDate(t.getTrainingEndDate()));
             tv.setMaterials(toVOList(attMap.get("training|" + t.getId() + "|material")));
             tv.setPhotos(toVOList(attMap.get("training|" + t.getId() + "|photo")));
             tv.setExtraValues(extraMap.getOrDefault("training|" + t.getId(), Collections.emptyMap()));
@@ -399,7 +452,8 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setGuidances(guidanceMapper.listByRecord(rid).stream().map(g -> {
             DwGuidanceVO gv = new DwGuidanceVO();
             BeanUtils.copyProperties(g, gv);
-            gv.setGuidanceTime(g.getGuidanceTime() != null ? g.getGuidanceTime().format(DATE_FMT) : null);
+            gv.setGuidanceStartDate(formatDate(g.getGuidanceStartDate()));
+            gv.setGuidanceEndDate(formatDate(g.getGuidanceEndDate()));
             gv.setCityCenterNames(resolveRegionNames(g.getCityCenterIds(), regionMap));
             gv.setCountyCenterNames(resolveRegionNames(g.getCountyCenterIds(), regionMap));
             gv.setCountyCenterGroups(groupCountyCenters(g.getCountyCenterIds(), regionMap));
@@ -412,7 +466,8 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setSurveys(surveyMapper.listByRecord(rid).stream().map(s -> {
             DwSurveyVO sv = new DwSurveyVO();
             BeanUtils.copyProperties(s, sv);
-            sv.setSurveyTime(s.getSurveyTime() != null ? s.getSurveyTime().format(DATE_FMT) : null);
+            sv.setSurveyStartDate(formatDate(s.getSurveyStartDate()));
+            sv.setSurveyEndDate(formatDate(s.getSurveyEndDate()));
             sv.setReports(toVOList(attMap.get("survey|" + s.getId() + "|report")));
             sv.setPhotos(toVOList(attMap.get("survey|" + s.getId() + "|photo")));
             sv.setExtraValues(extraMap.getOrDefault("survey|" + s.getId(), Collections.emptyMap()));
@@ -450,7 +505,8 @@ public class DwRecordServiceImpl implements DwRecordService {
             DwBonusVO bv = new DwBonusVO();
             BeanUtils.copyProperties(b, bv);
             bv.setPubDate(b.getPubDate() != null ? b.getPubDate().format(DATE_FMT) : null);
-            bv.setCompDate(b.getCompDate() != null ? b.getCompDate().format(DATE_FMT) : null);
+            bv.setCompStartDate(formatDate(b.getCompStartDate()));
+            bv.setCompEndDate(formatDate(b.getCompEndDate()));
             bv.setEvidences(toVOList(attMap.get("bonus|" + b.getId() + "|evidence")));
             bv.setExtraValues(extraMap.getOrDefault("bonus|" + b.getId(), Collections.emptyMap()));
             return bv;
@@ -489,6 +545,59 @@ public class DwRecordServiceImpl implements DwRecordService {
 
     private int nvl(Integer v) { return v == null ? 0 : v; }
     private String nvlId(Long v) { return v == null ? "null" : String.valueOf(v); }
+    private String formatDate(LocalDate date) { return date != null ? date.format(DATE_FMT) : null; }
+
+    private HalfDayRange normalizeHalfDayRange(
+            LocalDate startDate, String startHalf,
+            LocalDate endDate, String endHalf,
+            String label) {
+        boolean required = notBlank(label);
+        if (!required && startDate == null && endDate == null && !notBlank(startHalf) && !notBlank(endHalf)) {
+            return new HalfDayRange(null, null, null, null);
+        }
+        if (startDate == null || endDate == null || !notBlank(startHalf) || !notBlank(endHalf)) {
+            throw new BusinessException(400, (required ? label : "时间区间") + "需同时提供开始日期/时段和结束日期/时段");
+        }
+        String sh = normalizeHalf(startHalf, label);
+        String eh = normalizeHalf(endHalf, label);
+        String prefix = notBlank(label) ? label : "时间区间";
+        if (compareHalfDay(startDate, sh, endDate, eh) > 0) {
+            throw new BusinessException(400, prefix + "开始时间不能晚于结束时间");
+        }
+        return new HalfDayRange(startDate, sh, endDate, eh);
+    }
+
+    private String normalizeHalf(String half, String label) {
+        String v = half == null ? null : half.trim().toUpperCase(Locale.ROOT);
+        if (!"AM".equals(v) && !"PM".equals(v)) {
+            String prefix = notBlank(label) ? label : "时间区间";
+            throw new BusinessException(400, prefix + "时段仅支持 AM/PM");
+        }
+        return v;
+    }
+
+    private int compareHalfDay(LocalDate startDate, String startHalf, LocalDate endDate, String endHalf) {
+        int dateCmp = startDate.compareTo(endDate);
+        if (dateCmp != 0) return dateCmp;
+        return Integer.compare(halfOrder(startHalf), halfOrder(endHalf));
+    }
+
+    private int halfOrder(String half) { return "AM".equals(half) ? 0 : 1; }
+    private boolean notBlank(String s) { return s != null && !s.trim().isEmpty(); }
+
+    private static class HalfDayRange {
+        private final LocalDate startDate;
+        private final String startHalf;
+        private final LocalDate endDate;
+        private final String endHalf;
+
+        private HalfDayRange(LocalDate startDate, String startHalf, LocalDate endDate, String endHalf) {
+            this.startDate = startDate;
+            this.startHalf = startHalf;
+            this.endDate = endDate;
+            this.endHalf = endHalf;
+        }
+    }
 
     /**
      * 从内存缓存构建 regionId → name 全量查找表。
