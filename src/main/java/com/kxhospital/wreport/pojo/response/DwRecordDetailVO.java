@@ -30,6 +30,8 @@ public class DwRecordDetailVO {
     private String auditRemark;
 
     // ── 多条记录型模块 ──────────────────────────────
+    /** 各模块总体自评分（record 级，key=moduleKey，如 meeting/training/.../bonus_pub/bonus_comp） */
+    private Map<String, java.math.BigDecimal> moduleSelfScores;
     private List<DwMeetingVO>  meetings;
     private List<DwTrainingVO> trainings;
     private List<DwGuidanceVO> guidances;
@@ -69,8 +71,6 @@ public class DwRecordDetailVO {
         private String meetingContent;
         private Integer attendeeCount;
         private java.math.BigDecimal attendanceRate;
-        /** 填报者自评分（可为空） */
-        private java.math.BigDecimal selfScore;
         private List<DwAttachmentVO> minutes;
         private List<DwAttachmentVO> photos;
         private List<DwAttachmentVO> signins;

@@ -569,13 +569,13 @@ INSERT INTO dw_module_config (id, module_key, module_name, score_max, score_rule
 (9000000000000002, 'training',        '质控培训',         10, '每次培训得2分，上限10分', TRUE,  2, '请上传培训材料（PDF/DOCX）及现场照片（图片/PDF）'),
 (9000000000000003, 'guidance',        '质控指导',         10, '每次指导得2分，上限10分', TRUE,  3, '请上传佐证材料（PDF/DOCX）'),
 (9000000000000004, 'survey',          '质控调研',        10, '每次调研得2分，上限10分', TRUE,  4, '请上传调研报告（PDF/DOCX）及现场照片（图片/PDF）'),
-(9000000000000005, 'annual_work',     '年度工作落实推进', 15, '完成得15分，未完成得0分', TRUE,  5, '请上传佐证材料（PDF/DOCX），材料须加盖公章'),
+(9000000000000005, 'annual_work',     '年度工作落实推进', 20, '完成得20分，未完成得0分', TRUE,  5, '请上传佐证材料（PDF/DOCX），材料须加盖公章'),
 (9000000000000006, 'it_construction', '信息化建设',       10, '完成得10分，未完成得0分', TRUE,  6, '请上传佐证材料（PDF/DOCX），材料须加盖公章'),
-(9000000000000007, 'work_plan',       '工作计划总结',     15, '年度计划8分+年度总结7分', TRUE,  7, '请分别上传年度工作计划及年度工作总结（PDF/DOCX），材料须加盖公章'),
+(9000000000000007, 'work_plan',       '工作计划总结',     10, '年度计划5分+年度总结5分', TRUE,  7, '请分别上传年度工作计划及年度工作总结（PDF/DOCX），材料须加盖公章'),
 (9000000000000008, 'admin_response',  '行政指令响应与传达', 10, '完成得10分，未完成得0分', TRUE,  8, '请上传响应与传达的佐证材料（PDF/DOCX），材料须加盖公章'),
 (9000000000000009, 'activity_report', '质控活动报备',     10, '完成得10分，未完成得0分', TRUE,  9, '请上传活动报备事前截图及事后截图（图片/PDF）'),
-(9000000000000010, 'funding',         '经费执行',          6, '财政专项≥90%得3分；医院配套≥90%得3分，≥60%得2分，≥20%得1分', TRUE, 10, '第四季度填写，请如实填报财政专项及医院配套经费执行情况'),
-(9000000000000011, 'bonus_pub',       '加分项-丛书/指南',  3, '丛书/指南/共识得3分；标准/规范得2分；2024-2025年内出版', TRUE, 11, '请上传出版证明文件（PDF/DOCX）'),
+(9000000000000010, 'funding',         '经费执行',         10, '经费执行率及规范性', TRUE, 10, '第四季度填写，请如实填报财政专项及医院配套经费执行情况'),
+(9000000000000011, 'bonus_pub',       '加分项-丛书/指南',  5, '近两年制定丛书、指南、规范、共识等情况', TRUE, 11, '请上传出版证明文件（PDF/DOCX）'),
 (9000000000000012, 'bonus_comp',      '加分项-技能竞赛',   5, '省总工会+省卫健委联合举办得5分；其他形式得2分；2024-2025年内举办', TRUE, 12, '请上传竞赛证明文件（PDF/DOCX）')
 ON CONFLICT (module_key) DO UPDATE SET
     module_name = EXCLUDED.module_name,
@@ -589,6 +589,30 @@ ON CONFLICT (module_key) DO UPDATE SET
 -- score_desc 初始数据（公开版考核说明，去掉具体分值保留"不得分"）
 -- 来源：附件-2025年度质控工作的日常工作评分表"得分标准"列原文
 -- ===========================================================
+INSERT INTO dw_field_config (
+    id, module_key, field_key, field_name, field_type, field_options,
+    is_required, sort_order, placeholder, is_enabled
+) VALUES
+    (9000000000001001, 'meeting',         'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001002, 'training',        'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001003, 'guidance',        'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001004, 'survey',          'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001005, 'annual_work',     'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001006, 'it_construction', 'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001007, 'work_plan',       'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001008, 'admin_response',  'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001009, 'activity_report', 'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001010, 'funding',         'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001011, 'bonus_pub',       'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+    (9000000000001012, 'bonus_comp',      'module_self_score', '项目自评分', 'number', NULL, FALSE, 1, '请填写该项目自评分（0-满分）', TRUE)
+ON CONFLICT (module_key, field_key) DO UPDATE SET
+    field_name   = EXCLUDED.field_name,
+    field_type   = EXCLUDED.field_type,
+    sort_order   = EXCLUDED.sort_order,
+    placeholder  = EXCLUDED.placeholder,
+    is_enabled   = TRUE,
+    update_time  = NOW();
+
 UPDATE dw_module_config SET score_desc =
 '（1）未开展（不得分）；
 （2）有开展工作并提交相关佐证材料；

@@ -421,6 +421,7 @@ public class DwRecordServiceImpl implements DwRecordService {
 
         // 所有扩展字段值，按 "moduleKey|subRecordId" 分组
         Map<String, Map<String, String>> extraMap = configService.loadAllValues(rid);
+        vo.setModuleSelfScores(buildModuleSelfScores(extraMap));
 
         // 质控会议
         vo.setMeetings(meetingMapper.listByRecord(rid).stream().map(m -> {
@@ -546,6 +547,29 @@ public class DwRecordServiceImpl implements DwRecordService {
     private int nvl(Integer v) { return v == null ? 0 : v; }
     private String nvlId(Long v) { return v == null ? "null" : String.valueOf(v); }
     private String formatDate(LocalDate date) { return date != null ? date.format(DATE_FMT) : null; }
+    private java.math.BigDecimal parseDecimal(String v) {
+        if (v == null || v.trim().isEmpty()) return null;
+        try {
+            return new java.math.BigDecimal(v.trim());
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
+    private Map<String, java.math.BigDecimal> buildModuleSelfScores(Map<String, Map<String, String>> extraMap) {
+        List<String> modules = Arrays.asList(
+                "meeting", "training", "guidance", "survey",
+                "annual_work", "it_construction", "work_plan",
+                "admin_response", "activity_report", "funding",
+                "bonus_pub", "bonus_comp"
+        );
+        Map<String, java.math.BigDecimal> map = new LinkedHashMap<>();
+        for (String module : modules) {
+            Map<String, String> values = extraMap.getOrDefault(module + "|null", Collections.emptyMap());
+            map.put(module, parseDecimal(values.get("module_self_score")));
+        }
+        return map;
+    }
 
     private HalfDayRange normalizeHalfDayRange(
             LocalDate startDate, String startHalf,

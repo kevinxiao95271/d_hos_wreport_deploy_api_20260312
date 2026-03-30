@@ -28,7 +28,11 @@ public class DwModuleConfigVO {
     private Boolean isEnabled;
     private Integer sortOrder;
     private String uploadHint;
-    /** 该模块下已启用的扩展字段定义列表 */
+    /**
+     * 该模块下已启用的扩展字段定义列表（子记录级动态表单字段）。
+     * module_self_score 为模块级自评分，不在此列表中，其值通过
+     * GET /dw/record/{id} 的 moduleSelfScores 字段单独返回。
+     */
     private List<DwFieldConfigVO> extraFields;
 
     @Data

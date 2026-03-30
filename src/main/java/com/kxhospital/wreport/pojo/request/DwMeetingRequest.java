@@ -20,6 +20,4 @@ public class DwMeetingRequest {
     private String meetingContent;
     private Integer attendeeCount;
     private BigDecimal attendanceRate;
-    /** 填报者自评分（可为空） */
-    private BigDecimal selfScore;
 }

@@ -29,8 +29,6 @@ public class DwMeeting implements Serializable {
     private Integer attendeeCount;
     /** 参会率（%） */
     private BigDecimal attendanceRate;
-    /** 填报者自评分（可为空） */
-    private BigDecimal selfScore;
     @TableLogic(value = "0", delval = "1") private Integer delFlag;
     @TableField(fill = FieldFill.INSERT) private Long createUser;
     @TableField(fill = FieldFill.INSERT) private LocalDateTime createTime;
