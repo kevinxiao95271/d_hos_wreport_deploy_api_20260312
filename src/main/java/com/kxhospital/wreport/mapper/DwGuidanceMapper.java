@@ -11,7 +11,7 @@ import java.util.Map;
 
 @Mapper
 public interface DwGuidanceMapper extends BaseMapper<DwGuidance> {
-    @Select("SELECT * FROM dw_guidance WHERE record_id = #{recordId} AND del_flag = 0 ORDER BY guidance_time ASC")
+    @Select("SELECT * FROM dw_guidance WHERE record_id = #{recordId} AND del_flag = 0 ORDER BY guidance_start_date ASC, guidance_start_half ASC, id ASC")
     List<DwGuidance> listByRecord(@Param("recordId") Long recordId);
 
     @Select("<script>SELECT record_id AS rid, COUNT(*) AS cnt FROM dw_guidance " +
