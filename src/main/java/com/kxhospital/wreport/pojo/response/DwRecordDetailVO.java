@@ -32,9 +32,13 @@ public class DwRecordDetailVO {
     // ── 多条记录型模块 ──────────────────────────────
     /** 各模块总体自评分（record 级，key=moduleKey，如 meeting/training/.../bonus_pub/bonus_comp） */
     private Map<String, java.math.BigDecimal> moduleSelfScores;
+    /** 质控会议：按开始时间倒序（新→旧）；子项含 startYearQuarter、quarterIndex 供分季度配色 */
     private List<DwMeetingVO>  meetings;
+    /** 质控培训：排序与配色规则同 meetings */
     private List<DwTrainingVO> trainings;
+    /** 质控指导：排序与配色规则同 meetings */
     private List<DwGuidanceVO> guidances;
+    /** 质控调研：排序与配色规则同 meetings */
     private List<DwSurveyVO>   surveys;
 
     // ── 纯上传模块（附件按 slot 分组） ──────────────
@@ -69,6 +73,10 @@ public class DwRecordDetailVO {
         private String meetingEndHalf;
         private String meetingForm;
         private String meetingContent;
+        /** 开始日期所属自然季度，如 2025-Q2，与 quarterIndex 一致，供前端配色/分组 */
+        private String startYearQuarter;
+        /** 1–4，对应 Q1–Q4（按开始日期的月份） */
+        private Integer quarterIndex;
         private Integer attendeeCount;
         private java.math.BigDecimal attendanceRate;
         private List<DwAttachmentVO> minutes;
@@ -89,6 +97,8 @@ public class DwRecordDetailVO {
         private String trainingEndHalf;
         private String trainingForm;
         private String trainingContent;
+        private String startYearQuarter;
+        private Integer quarterIndex;
         /** 培训人数 */
         private Integer trainingPeopleCount;
         private List<DwAttachmentVO> materials;
@@ -106,6 +116,8 @@ public class DwRecordDetailVO {
         private String guidanceEndHalf;
         private String guidanceForm;
         private String guidanceContent;
+        private String startYearQuarter;
+        private Integer quarterIndex;
         private Integer cityCenterCount;
         /** 勾选的市级中心 ID 列表（供前端回显树选择器） */
         private String cityCenterIds;
@@ -144,6 +156,8 @@ public class DwRecordDetailVO {
         private String surveyType;
         private String surveyForm;
         private String surveyContent;
+        private String startYearQuarter;
+        private Integer quarterIndex;
         private List<DwAttachmentVO> reports;
         private List<DwAttachmentVO> photos;
         private Map<String, String> extraValues;

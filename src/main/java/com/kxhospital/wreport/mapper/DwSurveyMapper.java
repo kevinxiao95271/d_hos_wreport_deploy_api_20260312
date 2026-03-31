@@ -11,7 +11,7 @@ import java.util.Map;
 
 @Mapper
 public interface DwSurveyMapper extends BaseMapper<DwSurvey> {
-    @Select("SELECT * FROM dw_survey WHERE record_id = #{recordId} AND del_flag = 0 ORDER BY survey_start_date ASC, survey_start_half ASC, id ASC")
+    @Select("SELECT * FROM dw_survey WHERE record_id = #{recordId} AND del_flag = 0 ORDER BY survey_start_date DESC, survey_start_half DESC, id DESC")
     List<DwSurvey> listByRecord(@Param("recordId") Long recordId);
 
     @Select("<script>SELECT record_id AS rid, COUNT(*) AS cnt FROM dw_survey " +

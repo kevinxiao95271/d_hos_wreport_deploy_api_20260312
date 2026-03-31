@@ -429,6 +429,7 @@ public class DwRecordServiceImpl implements DwRecordService {
             BeanUtils.copyProperties(m, mv);
             mv.setMeetingStartDate(formatDate(m.getMeetingStartDate()));
             mv.setMeetingEndDate(formatDate(m.getMeetingEndDate()));
+            fillStartQuarter(mv, m.getMeetingStartDate());
             mv.setMinutes(toVOList(attMap.get("meeting|" + m.getId() + "|minutes")));
             mv.setPhotos(toVOList(attMap.get("meeting|" + m.getId() + "|photo")));
             mv.setSignins(toVOList(attMap.get("meeting|" + m.getId() + "|signin")));
@@ -442,6 +443,7 @@ public class DwRecordServiceImpl implements DwRecordService {
             BeanUtils.copyProperties(t, tv);
             tv.setTrainingStartDate(formatDate(t.getTrainingStartDate()));
             tv.setTrainingEndDate(formatDate(t.getTrainingEndDate()));
+            fillStartQuarter(tv, t.getTrainingStartDate());
             tv.setMaterials(toVOList(attMap.get("training|" + t.getId() + "|material")));
             tv.setPhotos(toVOList(attMap.get("training|" + t.getId() + "|photo")));
             tv.setExtraValues(extraMap.getOrDefault("training|" + t.getId(), Collections.emptyMap()));
@@ -455,6 +457,7 @@ public class DwRecordServiceImpl implements DwRecordService {
             BeanUtils.copyProperties(g, gv);
             gv.setGuidanceStartDate(formatDate(g.getGuidanceStartDate()));
             gv.setGuidanceEndDate(formatDate(g.getGuidanceEndDate()));
+            fillStartQuarter(gv, g.getGuidanceStartDate());
             gv.setCityCenterNames(resolveRegionNames(g.getCityCenterIds(), regionMap));
             gv.setCountyCenterNames(resolveRegionNames(g.getCountyCenterIds(), regionMap));
             gv.setCountyCenterGroups(groupCountyCenters(g.getCountyCenterIds(), regionMap));
@@ -469,6 +472,7 @@ public class DwRecordServiceImpl implements DwRecordService {
             BeanUtils.copyProperties(s, sv);
             sv.setSurveyStartDate(formatDate(s.getSurveyStartDate()));
             sv.setSurveyEndDate(formatDate(s.getSurveyEndDate()));
+            fillStartQuarter(sv, s.getSurveyStartDate());
             sv.setReports(toVOList(attMap.get("survey|" + s.getId() + "|report")));
             sv.setPhotos(toVOList(attMap.get("survey|" + s.getId() + "|photo")));
             sv.setExtraValues(extraMap.getOrDefault("survey|" + s.getId(), Collections.emptyMap()));
@@ -547,6 +551,49 @@ public class DwRecordServiceImpl implements DwRecordService {
     private int nvl(Integer v) { return v == null ? 0 : v; }
     private String nvlId(Long v) { return v == null ? "null" : String.valueOf(v); }
     private String formatDate(LocalDate date) { return date != null ? date.format(DATE_FMT) : null; }
+
+    /** 自然季度：Q1=1–3 月，…，Q4=10–12 月；按开始日期计算，供列表分季度配色 */
+    private void fillStartQuarter(DwMeetingVO vo, LocalDate start) {
+        QuarterHint h = QuarterHint.of(start);
+        vo.setStartYearQuarter(h.startYearQuarter);
+        vo.setQuarterIndex(h.quarterIndex);
+    }
+
+    private void fillStartQuarter(DwTrainingVO vo, LocalDate start) {
+        QuarterHint h = QuarterHint.of(start);
+        vo.setStartYearQuarter(h.startYearQuarter);
+        vo.setQuarterIndex(h.quarterIndex);
+    }
+
+    private void fillStartQuarter(DwGuidanceVO vo, LocalDate start) {
+        QuarterHint h = QuarterHint.of(start);
+        vo.setStartYearQuarter(h.startYearQuarter);
+        vo.setQuarterIndex(h.quarterIndex);
+    }
+
+    private void fillStartQuarter(DwSurveyVO vo, LocalDate start) {
+        QuarterHint h = QuarterHint.of(start);
+        vo.setStartYearQuarter(h.startYearQuarter);
+        vo.setQuarterIndex(h.quarterIndex);
+    }
+
+    private static final class QuarterHint {
+        final String startYearQuarter;
+        final Integer quarterIndex;
+
+        private QuarterHint(String startYearQuarter, Integer quarterIndex) {
+            this.startYearQuarter = startYearQuarter;
+            this.quarterIndex = quarterIndex;
+        }
+
+        static QuarterHint of(LocalDate d) {
+            if (d == null) {
+                return new QuarterHint(null, null);
+            }
+            int q = (d.getMonthValue() - 1) / 3 + 1;
+            return new QuarterHint(d.getYear() + "-Q" + q, q);
+        }
+    }
     private java.math.BigDecimal parseDecimal(String v) {
         if (v == null || v.trim().isEmpty()) return null;
         try {

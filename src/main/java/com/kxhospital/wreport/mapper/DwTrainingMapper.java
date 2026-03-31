@@ -11,7 +11,7 @@ import java.util.Map;
 
 @Mapper
 public interface DwTrainingMapper extends BaseMapper<DwTraining> {
-    @Select("SELECT * FROM dw_training WHERE record_id = #{recordId} AND del_flag = 0 ORDER BY training_start_date ASC, training_start_half ASC, id ASC")
+    @Select("SELECT * FROM dw_training WHERE record_id = #{recordId} AND del_flag = 0 ORDER BY training_start_date DESC, training_start_half DESC, id DESC")
     List<DwTraining> listByRecord(@Param("recordId") Long recordId);
 
     @Select("<script>SELECT record_id AS rid, COUNT(*) AS cnt FROM dw_training " +
