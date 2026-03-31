@@ -382,22 +382,28 @@ END
 $$;
 
 -- ⑤ 经费执行（每个 record 只有一条，第四季度填写）
+--    fiscal_appropriation_wan / hospital_appropriation_wan：拨款金额（万元）
 --    fiscal_execution_rate：≥90%→3分；<90%→0分
 --    hospital_execution_rate：≥90%→3分；≥60%→2分；≥20%→1分；<20%→0分
 CREATE TABLE IF NOT EXISTS dw_funding (
-    id                       BIGINT        NOT NULL,
-    record_id                BIGINT        NOT NULL,
-    fiscal_has_fund          BOOLEAN       NOT NULL DEFAULT FALSE, -- 财政专项是否有拨款
-    fiscal_execution_rate    NUMERIC(5,2),                        -- 财政专项执行率（%）
-    hospital_has_fund        BOOLEAN       NOT NULL DEFAULT FALSE, -- 医院配套是否有拨款
-    hospital_execution_rate  NUMERIC(5,2),                        -- 医院配套执行率（%）
-    del_flag                 SMALLINT      NOT NULL DEFAULT 0,
-    create_user              BIGINT,
-    create_time              TIMESTAMP     NOT NULL DEFAULT NOW(),
-    update_time              TIMESTAMP     NOT NULL DEFAULT NOW(),
+    id                          BIGINT        NOT NULL,
+    record_id                   BIGINT        NOT NULL,
+    fiscal_appropriation_wan    NUMERIC(12,2),                     -- 财政专项拨款（万元）
+    fiscal_execution_rate       NUMERIC(5,2),                      -- 财政专项执行率（%）
+    hospital_appropriation_wan  NUMERIC(12,2),                     -- 医院配套拨款（万元）
+    hospital_execution_rate     NUMERIC(5,2),                      -- 医院配套执行率（%）
+    del_flag                    SMALLINT      NOT NULL DEFAULT 0,
+    create_user                 BIGINT,
+    create_time                 TIMESTAMP     NOT NULL DEFAULT NOW(),
+    update_time                 TIMESTAMP     NOT NULL DEFAULT NOW(),
     CONSTRAINT pk_dw_funding     PRIMARY KEY (id),
     CONSTRAINT uq_dw_funding_rid UNIQUE (record_id)
 );
+
+ALTER TABLE dw_funding ADD COLUMN IF NOT EXISTS fiscal_appropriation_wan NUMERIC(12,2);
+ALTER TABLE dw_funding ADD COLUMN IF NOT EXISTS hospital_appropriation_wan NUMERIC(12,2);
+ALTER TABLE dw_funding DROP COLUMN IF EXISTS fiscal_has_fund;
+ALTER TABLE dw_funding DROP COLUMN IF EXISTS hospital_has_fund;
 
 -- ⑥ 加分项（publication / competition 各最多一条）
 --    pub_category: 'book_guide_consensus'=丛书/指南/共识(3分) 'standard_norm'=标准/规范(2分)
@@ -575,7 +581,7 @@ INSERT INTO dw_module_config (id, module_key, module_name, score_max, score_rule
 (9000000000000007, 'work_plan',       '工作计划总结',     10, '年度计划5分+年度总结5分', TRUE,  7, '请分别上传年度工作计划及年度工作总结（PDF/DOCX），材料须加盖公章'),
 (9000000000000008, 'admin_response',  '行政指令响应与传达', 10, '完成得10分，未完成得0分', TRUE,  8, '请上传响应与传达的佐证材料（PDF/DOCX），材料须加盖公章'),
 (9000000000000009, 'activity_report', '质控活动报备',     10, '完成得10分，未完成得0分', TRUE,  9, '请上传活动报备事前截图及事后截图（图片/PDF）'),
-(9000000000000010, 'funding',         '经费执行',         10, '经费执行率及规范性', TRUE, 10, '第四季度填写，请如实填报财政专项及医院配套经费执行情况'),
+(9000000000000010, 'funding',         '经费执行',         10, '经费执行率及规范性', TRUE, 10, '第四季度填写，请填报财政专项拨款（万元）、医院配套拨款（万元）及对应执行率（%）'),
 (9000000000000011, 'bonus_pub',       '加分项-丛书/指南',  5, '近两年制定丛书、指南、规范、共识等情况', TRUE, 11, '请上传出版证明文件（PDF/DOCX）'),
 (9000000000000012, 'bonus_comp',      '加分项-技能竞赛',   5, '省总工会+省卫健委联合举办得5分；其他形式得2分；2024-2025年内举办', TRUE, 12, '请上传竞赛证明文件（PDF/DOCX）')
 ON CONFLICT (module_key) DO UPDATE SET
@@ -676,10 +682,9 @@ UPDATE dw_module_config SET score_desc =
 WHERE module_key = 'activity_report';
 
 UPDATE dw_module_config SET score_desc =
-'（1）财政专项经费：有拨款的中心纳入考核；
-    经费执行率≥90%；执行率＜90%（不得分）。
-（2）挂靠医院配套经费：所有中心纳入考核；
-    医院无配套经费（不得分）；有配套经费：
+'（1）财政专项经费：填报财政专项拨款（万元）及执行率；
+    执行率≥90%；执行率＜90%（不得分）。
+（2）挂靠医院配套经费：填报医院配套拨款（万元）及执行率；
     执行率≥90%；执行率≥60%；执行率≥20%；执行率＜20%（不得分）。'
 WHERE module_key = 'funding';
 

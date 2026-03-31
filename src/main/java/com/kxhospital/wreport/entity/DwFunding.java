@@ -18,13 +18,13 @@ import java.time.LocalDateTime;
 public class DwFunding implements Serializable {
     @TableId(value = "id", type = IdType.ASSIGN_ID) private Long id;
     private Long recordId;
-    /** 财政专项经费是否有拨款 */
-    private Boolean fiscalHasFund;
-    /** 财政专项执行率（%），fiscalHasFund=true 时填写 */
+    /** 财政专项拨款（万元），库列 fiscal_appropriation_wan */
+    private BigDecimal fiscalAppropriationWan;
+    /** 财政专项执行率（%） */
     private BigDecimal fiscalExecutionRate;
-    /** 医院配套经费是否有拨款 */
-    private Boolean hospitalHasFund;
-    /** 医院配套执行率（%），hospitalHasFund=true 时填写 */
+    /** 医院配套拨款（万元），库列 hospital_appropriation_wan */
+    private BigDecimal hospitalAppropriationWan;
+    /** 医院配套执行率（%） */
     private BigDecimal hospitalExecutionRate;
     @TableLogic(value = "0", delval = "1") private Integer delFlag;
     @TableField(fill = FieldFill.INSERT) private Long createUser;
