@@ -1,10 +1,14 @@
 package com.kxhospital.wreport.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableLogic;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -24,9 +28,9 @@ public class DwTraining implements Serializable {
     /** 'online'=线上  'offline'=线下 */
     private String trainingForm;
     private String trainingContent;
-    private Integer attendeeCount;
-    /** 培训覆盖率（%） */
-    private BigDecimal coverageRate;
+    /** 培训人数（库列 attendee_count） */
+    @TableField("attendee_count")
+    private Integer trainingPeopleCount;
     @TableLogic(value = "0", delval = "1") private Integer delFlag;
     @TableField(fill = FieldFill.INSERT) private Long createUser;
     @TableField(fill = FieldFill.INSERT) private LocalDateTime createTime;

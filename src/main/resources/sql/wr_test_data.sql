@@ -98,7 +98,7 @@ INSERT INTO wr_template_item
     (id, template_id, parent_id, item_name, header_row, col_index, row_span, col_span, is_leaf, value_type, unit, sort_num, create_time)
 VALUES
 (1000000000000000041, 1000000000000000001, 1000000000000000040, '培训次数', 2, 7, 1, 1, 1, 'number', '次', 41, CURRENT_TIMESTAMP),
-(1000000000000000042, 1000000000000000001, 1000000000000000040, '参训人次', 2, 8, 1, 1, 1, 'number', '人次', 42, CURRENT_TIMESTAMP)
+(1000000000000000042, 1000000000000000001, 1000000000000000040, '培训人数', 2, 8, 1, 1, 1, 'number', '人', 42, CURRENT_TIMESTAMP)
 ON CONFLICT (id) DO NOTHING;
 
 -- 质控调研 子节点

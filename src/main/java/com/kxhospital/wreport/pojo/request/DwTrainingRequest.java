@@ -1,7 +1,6 @@
 package com.kxhospital.wreport.pojo.request;
 
 import lombok.Data;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
@@ -18,6 +17,6 @@ public class DwTrainingRequest {
     /** 'online' | 'offline' */
     private String trainingForm;
     private String trainingContent;
-    private Integer attendeeCount;
-    private BigDecimal coverageRate;
+    /** 培训人数 */
+    private Integer trainingPeopleCount;
 }

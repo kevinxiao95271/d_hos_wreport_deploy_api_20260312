@@ -259,8 +259,7 @@ CREATE TABLE IF NOT EXISTS dw_training (
     training_end_half   VARCHAR(2), -- AM/PM
     training_form    VARCHAR(20)   NOT NULL,  -- 'online'=线上 'offline'=线下
     training_content TEXT          NOT NULL,
-    attendee_count   INT           NOT NULL DEFAULT 0,
-    coverage_rate    NUMERIC(5,2)  NOT NULL DEFAULT 0, -- 培训覆盖率（%）
+    attendee_count   INT           NOT NULL DEFAULT 0, -- 培训人数
     del_flag         SMALLINT      NOT NULL DEFAULT 0,
     create_user      BIGINT,
     create_time      TIMESTAMP     NOT NULL DEFAULT NOW(),
@@ -289,6 +288,8 @@ BEGIN
     END IF;
 END
 $$;
+
+ALTER TABLE dw_training DROP COLUMN IF EXISTS coverage_rate;
 
 -- ③ 质控指导（多条记录）
 --    市级质控中心：省→市 两级树勾选，末级节点数自动统计
@@ -623,7 +624,7 @@ WHERE module_key = 'meeting';
 UPDATE dw_module_config SET score_desc =
 '（1）未开展（不得分）；
 （2）有开展工作并提交相关佐证材料；
-    提供每次培训内容（包括但不限于培训名称、内容、时间、人数、形式、培训覆盖率等）、会议现场照片。'
+    提供每次培训内容（包括但不限于培训名称、内容、时间、培训人数、形式等）、现场照片。'
 WHERE module_key = 'training';
 
 UPDATE dw_module_config SET score_desc =

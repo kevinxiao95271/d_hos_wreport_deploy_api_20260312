@@ -89,8 +89,8 @@ public class DwRecordDetailVO {
         private String trainingEndHalf;
         private String trainingForm;
         private String trainingContent;
-        private Integer attendeeCount;
-        private java.math.BigDecimal coverageRate;
+        /** 培训人数 */
+        private Integer trainingPeopleCount;
         private List<DwAttachmentVO> materials;
         private List<DwAttachmentVO> photos;
         private Map<String, String> extraValues;
