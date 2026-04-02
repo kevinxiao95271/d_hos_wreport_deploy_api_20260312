@@ -15,6 +15,8 @@ public class WrTask implements Serializable {
     /** 任务类型：'normal'=普通模板任务  'daily_work'=日常工作模块任务 */
     private String taskType;
     private String statYear;
+    /** 统计季度 1–4（Q1–Q4）；null 表示全年度任务 */
+    private Integer statQuarter;
     private LocalDateTime deadline;
     private Integer status;
     private String remark;

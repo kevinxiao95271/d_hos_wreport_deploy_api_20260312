@@ -43,6 +43,13 @@ public class WrTaskServiceImpl implements WrTaskService {
     @Override
     public Long add(WrTask task) {
         if (task.getTaskType() == null) task.setTaskType("normal");
+        if ("daily_work".equals(task.getTaskType())) {
+            if (task.getStatYear() == null || task.getStatYear().trim().isEmpty())
+                throw new BusinessException(400, "日常工作任务须填写统计年度 statYear");
+            Integer q = task.getStatQuarter();
+            if (q != null && (q < 1 || q > 4))
+                throw new BusinessException(400, "统计季度须为 1–4，不填则视为全年度任务");
+        }
         task.setStatus(0);
         taskMapper.insert(task);
         return task.getId();
@@ -50,6 +57,20 @@ public class WrTaskServiceImpl implements WrTaskService {
 
     @Override
     public void update(WrTask task) {
+        if (task == null || task.getId() == null)
+            throw new BusinessException(400, "任务ID不能为空");
+        WrTask db = taskMapper.selectById(task.getId());
+        if (db == null || (db.getDelFlag() != null && db.getDelFlag() == 1))
+            throw new BusinessException(404, "任务不存在");
+        String type = task.getTaskType() != null ? task.getTaskType() : db.getTaskType();
+        String year = task.getStatYear() != null ? task.getStatYear() : db.getStatYear();
+        Integer q   = task.getStatQuarter() != null ? task.getStatQuarter() : db.getStatQuarter();
+        if ("daily_work".equals(type)) {
+            if (year == null || year.trim().isEmpty())
+                throw new BusinessException(400, "日常工作任务须填写统计年度 statYear");
+            if (q != null && (q < 1 || q > 4))
+                throw new BusinessException(400, "统计季度须为 1–4，不填则视为全年度任务");
+        }
         taskMapper.updateById(task);
     }
 

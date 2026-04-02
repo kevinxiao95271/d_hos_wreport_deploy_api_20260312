@@ -9,6 +9,7 @@ import com.kxhospital.wreport.entity.DwModuleConfig;
 import com.kxhospital.wreport.pojo.response.DwModuleConfigVO;
 import com.kxhospital.wreport.pojo.response.GuidanceRegionsVO;
 import com.kxhospital.wreport.service.DwConfigService;
+import com.kxhospital.wreport.service.DwTaskModuleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Tag(name = "日常工作模块 — 配置管理")
 @RestController
@@ -26,8 +28,9 @@ import java.util.Map;
 @SecurityRequirement(name = "BearerAuth")
 public class DwConfigController {
 
-    private final DwConfigService configService;
-    private final DwRegionCache   regionCache;
+    private final DwConfigService    configService;
+    private final DwTaskModuleService taskModuleService;
+    private final DwRegionCache      regionCache;
 
     // ── 质控指导地区树（任何已登录用户均可调用） ───────────────────────────────────
 
@@ -114,6 +117,25 @@ public class DwConfigController {
         LoginUser u = user();
         configService.saveFieldValues(req.getRecordId(), req.getModuleKey(),
                 req.getSubRecordId(), req.getValues(), u);
+        return R.ok();
+    }
+
+    // ── 任务模块范围（管理员配置哪些模块可填报）──────────────────────────────────
+
+    @Operation(summary = "查询任务已启用的模块 key 列表",
+               description = "返回该任务当前勾选的模块标识列表；scope 为空时返回全部启用模块（降级兼容）。")
+    @GetMapping("/task-modules/{taskId}")
+    public R<Set<String>> getTaskModules(@PathVariable Long taskId) {
+        user();
+        return R.ok(taskModuleService.resolveEnabledModuleKeys(taskId));
+    }
+
+    @Operation(summary = "设置任务的模块范围（管理员）",
+               description = "传入 moduleKeys 列表替换全量；季度任务推荐: [meeting,training,guidance,survey]；年度任务推荐全量。")
+    @PostMapping("/task-modules/{taskId}")
+    public R<Void> setTaskModules(@PathVariable Long taskId, @RequestBody List<String> moduleKeys) {
+        requireAdmin();
+        taskModuleService.replaceModuleScope(taskId, moduleKeys);
         return R.ok();
     }
 

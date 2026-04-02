@@ -27,7 +27,7 @@ public class JwtService {
                 .setSubject(String.valueOf(user.getUserId()))
                 .claim("account",  user.getAccount())
                 .claim("realName", user.getRealName())
-                .claim("orgId",    String.valueOf(user.getOrgId()))
+                .claim("orgId",    user.getOrgId() != null ? String.valueOf(user.getOrgId()) : null)
                 .claim("orgName",  user.getOrgName())
                 .claim("roleCode", user.getRoleCode())
                 .setIssuedAt(Date.from(now))
@@ -50,7 +50,7 @@ public class JwtService {
         u.setAccount(body.get("account", String.class));
         u.setRealName(body.get("realName", String.class));
         String orgIdStr = body.get("orgId", String.class);
-        u.setOrgId(orgIdStr != null ? Long.parseLong(orgIdStr) : null);
+        u.setOrgId(orgIdStr != null && !"null".equals(orgIdStr) ? Long.parseLong(orgIdStr) : null);
         u.setOrgName(body.get("orgName", String.class));
         u.setRoleCode(body.get("roleCode", String.class));
         return u;

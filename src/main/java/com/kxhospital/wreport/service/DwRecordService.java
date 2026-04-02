@@ -6,6 +6,7 @@ import com.kxhospital.wreport.pojo.request.*;
 import com.kxhospital.wreport.pojo.response.DwAttachmentVO;
 import com.kxhospital.wreport.pojo.response.DwAdminOverviewVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO;
+import com.kxhospital.wreport.pojo.response.DwYearQuarterRecordVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -55,4 +56,11 @@ public interface DwRecordService {
     // ── 管理端汇总视图 ────────────────────────────────
     /** 跨机构汇总视图：各机构填报状态及各模块数据量 */
     DwAdminOverviewVO adminOverview(Long taskId);
+
+    /**
+     * 年度汇总：按 statYear 查该年度下所有 daily_work 季度任务及指定机构的填报快照（只读）。
+     * 管理端在查看年度任务时用于展示季度参考数据。
+     * approvedOnly=true 时仅返回已审核通过（recordStatus=2）的季度记录。
+     */
+    List<DwYearQuarterRecordVO> yearSummary(String statYear, Long orgId, Boolean approvedOnly, LoginUser user);
 }

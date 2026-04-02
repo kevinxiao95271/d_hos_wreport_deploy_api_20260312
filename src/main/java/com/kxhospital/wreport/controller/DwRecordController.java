@@ -8,6 +8,7 @@ import com.kxhospital.wreport.pojo.request.*;
 import com.kxhospital.wreport.pojo.response.DwAdminOverviewVO;
 import com.kxhospital.wreport.pojo.response.DwAttachmentVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO;
+import com.kxhospital.wreport.pojo.response.DwYearQuarterRecordVO;
 import com.kxhospital.wreport.service.DwRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -15,6 +16,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @Tag(name = "日常工作模块 — 填报")
 @RestController
@@ -40,6 +43,18 @@ public class DwRecordController {
     public R<DwAdminOverviewVO> adminOverview(@RequestParam Long taskId) {
         requireAdmin();
         return R.ok(service.adminOverview(taskId));
+    }
+
+    @Operation(summary = "年度汇总（管理端查看年度任务时展示各季度填报参考）",
+               description = "按 statYear 汇总该年度下所有 daily_work 季度任务，返回指定机构的填报快照（只读）。\n" +
+                             "管理端须传 orgId；机构端返回本机构数据。\n" +
+                             "approvedOnly=true 时仅返回已审核通过（recordStatus=2）的季度，可用于年度任务页仅展示已通过数据。")
+    @GetMapping("/year-summary")
+    public R<List<DwYearQuarterRecordVO>> yearSummary(
+            @RequestParam String statYear,
+            @RequestParam(required = false) Long orgId,
+            @RequestParam(required = false, defaultValue = "false") Boolean approvedOnly) {
+        return R.ok(service.yearSummary(statYear, orgId, approvedOnly, user()));
     }
 
     @Operation(summary = "查看填报详情",

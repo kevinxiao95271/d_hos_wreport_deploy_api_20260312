@@ -28,6 +28,13 @@ public class DwRecordDetailVO {
     /** 0=草稿 1=已提交 2=已通过 3=已驳回 */
     private Integer status;
     private String auditRemark;
+    /**
+     * 机构端：任务已关闭、记录已提交/通过时为 true，前端整体灰态只读；
+     * 年度汇总接口中强制为 true（forceReadOnly）；管理员查看时始终为 false。
+     */
+    private Boolean readOnly;
+    /** 该任务启用的模块 key 列表，前端据此隐藏未勾选模块 */
+    private List<String> enabledModuleKeys;
 
     // ── 多条记录型模块 ──────────────────────────────
     /** 各模块总体自评分（record 级，key=moduleKey，如 meeting/training/.../bonus_pub/bonus_comp） */

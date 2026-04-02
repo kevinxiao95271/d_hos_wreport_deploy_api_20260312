@@ -13,9 +13,11 @@ import com.kxhospital.wreport.pojo.response.DwAdminOverviewVO;
 import com.kxhospital.wreport.pojo.response.DwAttachmentVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO.*;
+import com.kxhospital.wreport.pojo.response.DwYearQuarterRecordVO;
 import com.kxhospital.wreport.pojo.response.RegionNodeVO;
 import com.kxhospital.wreport.pojo.response.TaskScopeOrgVO;
 import com.kxhospital.wreport.service.DwRecordService;
+import com.kxhospital.wreport.service.DwTaskModuleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -47,6 +49,7 @@ public class DwRecordServiceImpl implements DwRecordService {
     private final MinioService       minioService;
     private final MinioProperties    minioProps;
     private final com.kxhospital.wreport.service.DwConfigService configService;
+    private final DwTaskModuleService dwTaskModuleService;
     private final DwRegionCache      regionCache;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -83,7 +86,7 @@ public class DwRecordServiceImpl implements DwRecordService {
             record.setStatus(0);
             recordMapper.insert(record);
         }
-        return buildDetail(record, task);
+        return buildDetail(record, task, user, false);
     }
 
     @Override
@@ -92,7 +95,42 @@ public class DwRecordServiceImpl implements DwRecordService {
         if (!user.isAdmin() && !record.getOrgId().equals(user.getOrgId()))
             throw new BusinessException(403, "无权查看该记录");
         WrTask task = taskMapper.selectById(record.getTaskId());
-        return buildDetail(record, task);
+        return buildDetail(record, task, user, false);
+    }
+
+    @Override
+    public List<DwYearQuarterRecordVO> yearSummary(String statYear, Long orgId, Boolean approvedOnly, LoginUser user) {
+        if (statYear == null || statYear.trim().isEmpty())
+            throw new BusinessException(400, "statYear 不能为空");
+        Long oid;
+        if (user.isAdmin()) {
+            if (orgId == null) throw new BusinessException(400, "管理端请指定 orgId");
+            oid = orgId;
+        } else {
+            oid = user.getOrgId();
+        }
+        List<WrTask> tasks = taskMapper.selectDailyWorkByStatYear(statYear.trim());
+        List<DwYearQuarterRecordVO> out = new ArrayList<>();
+        boolean onlyApproved = Boolean.TRUE.equals(approvedOnly);
+        for (WrTask t : tasks) {
+            WrRecord rec = recordMapper.findByTaskAndOrg(t.getId(), oid);
+            if (onlyApproved && (rec == null || rec.getStatus() == null || rec.getStatus() != 2)) continue;
+            DwYearQuarterRecordVO row = new DwYearQuarterRecordVO();
+            row.setTaskId(t.getId());
+            row.setTaskName(t.getTaskName());
+            row.setTaskStatus(t.getStatus());
+            row.setStatYear(t.getStatYear());
+            row.setStatQuarter(t.getStatQuarter());
+            row.setReadOnly(true);
+            row.setEnabledModuleKeys(new ArrayList<>(dwTaskModuleService.resolveEnabledModuleKeys(t.getId())));
+            if (rec != null) {
+                row.setRecordId(rec.getId());
+                row.setRecordStatus(rec.getStatus());
+                row.setDetail(buildDetail(rec, t, user, true));
+            }
+            out.add(row);
+        }
+        return out;
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -103,6 +141,7 @@ public class DwRecordServiceImpl implements DwRecordService {
     @Transactional
     public DwMeeting saveMeeting(DwMeetingRequest req, LoginUser user) {
         requireEditableRecord(req.getRecordId(), user);
+        assertNotPlaceholderOnly("会议名称", req.getMeetingName());
         HalfDayRange meetingRange = normalizeHalfDayRange(
                 req.getMeetingStartDate(), req.getMeetingStartHalf(),
                 req.getMeetingEndDate(), req.getMeetingEndHalf(),
@@ -403,7 +442,7 @@ public class DwRecordServiceImpl implements DwRecordService {
     // 内部：聚合详情构建
     // ─────────────────────────────────────────────────────────────
 
-    private DwRecordDetailVO buildDetail(WrRecord record, WrTask task) {
+    private DwRecordDetailVO buildDetail(WrRecord record, WrTask task, LoginUser user, boolean forceReadOnly) {
         Long rid = record.getId();
         DwRecordDetailVO vo = new DwRecordDetailVO();
         vo.setRecordId(rid);
@@ -412,6 +451,8 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setOrgName(record.getOrgName());
         vo.setStatus(record.getStatus());
         vo.setAuditRemark(record.getAuditRemark());
+        vo.setReadOnly(computeReadOnly(record, task, user, forceReadOnly));
+        vo.setEnabledModuleKeys(new ArrayList<>(dwTaskModuleService.resolveEnabledModuleKeys(record.getTaskId())));
 
         // 所有附件按 subRecordId + moduleType + slot 分组
         List<DwAttachment> allAtts = attachmentMapper.listByRecord(rid);
@@ -651,6 +692,24 @@ public class DwRecordServiceImpl implements DwRecordService {
         int dateCmp = startDate.compareTo(endDate);
         if (dateCmp != 0) return dateCmp;
         return Integer.compare(halfOrder(startHalf), halfOrder(endHalf));
+    }
+
+    private boolean computeReadOnly(WrRecord record, WrTask task, LoginUser user, boolean forceReadOnly) {
+        if (forceReadOnly) return true;
+        if (user == null) return true;
+        if (user.isAdmin()) return false;
+        if (task != null && task.getStatus() != null && task.getStatus() != 1) return true;
+        Integer st = record.getStatus();
+        return st != null && st != 0 && st != 3;
+    }
+
+    private static void assertNotPlaceholderOnly(String fieldLabel, String value) {
+        if (value == null || value.trim().isEmpty())
+            throw new BusinessException(400, fieldLabel + "不能为空");
+        boolean onlyGarbage = value.trim().chars()
+                .allMatch(c -> c == '?' || c == '\uFFFD' || Character.isWhitespace(c));
+        if (onlyGarbage)
+            throw new BusinessException(400, fieldLabel + "无效，请填写真实文字");
     }
 
     private int halfOrder(String half) { return "AM".equals(half) ? 0 : 1; }

@@ -38,16 +38,18 @@ CREATE TABLE IF NOT EXISTS wr_template_item (
 CREATE INDEX IF NOT EXISTS idx_wr_template_item_tid ON wr_template_item(template_id);
 CREATE INDEX IF NOT EXISTS idx_wr_template_item_pid ON wr_template_item(parent_id);
 CREATE TABLE IF NOT EXISTS wr_task (
-    id          BIGINT       NOT NULL,
-    task_name   VARCHAR(300) NOT NULL,
-    template_id BIGINT       NOT NULL,
-    stat_year   VARCHAR(10),
-    deadline    TIMESTAMP,
-    status      SMALLINT     NOT NULL DEFAULT 0,
-    remark      TEXT,
-    create_user BIGINT,
-    create_time TIMESTAMP,
-    update_user BIGINT,
+    id           BIGINT       NOT NULL,
+    task_name    VARCHAR(300) NOT NULL,
+    template_id  BIGINT       NOT NULL,
+    task_type    VARCHAR(30)  NOT NULL DEFAULT 'normal',
+    stat_year    VARCHAR(10),
+    stat_quarter SMALLINT,
+    deadline     TIMESTAMP,
+    status       SMALLINT     NOT NULL DEFAULT 0,
+    remark       TEXT,
+    create_user  BIGINT,
+    create_time  TIMESTAMP,
+    update_user  BIGINT,
     update_time TIMESTAMP,
     del_flag    SMALLINT     NOT NULL DEFAULT 0,
     CONSTRAINT pk_wr_task PRIMARY KEY (id)
@@ -847,3 +849,18 @@ INSERT INTO dw_region (id, parent_id, name, level, tree_type, sort_order) VALUES
 (21108, 211, '松阳县', 3, 'county',  8),
 (21109, 211, '景宁县', 3, 'county',  9)
 ON CONFLICT (id) DO NOTHING;
+
+-- ── 存量兼容：wr_task 补列（已有表升级）──────────────────────────────────
+ALTER TABLE wr_task ADD COLUMN IF NOT EXISTS task_type    VARCHAR(30)  NOT NULL DEFAULT 'normal';
+ALTER TABLE wr_task ADD COLUMN IF NOT EXISTS stat_quarter SMALLINT;
+
+-- ── 任务模块范围（每个 daily_work 任务启用哪些模块）──────────────────────
+CREATE TABLE IF NOT EXISTS dw_task_module_scope (
+    id          BIGINT       NOT NULL,
+    task_id     BIGINT       NOT NULL,
+    module_key  VARCHAR(50)  NOT NULL,
+    sort_order  INT          NOT NULL DEFAULT 0,
+    create_time TIMESTAMP,
+    CONSTRAINT pk_dw_task_module_scope PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS idx_dw_task_module_scope_tid ON dw_task_module_scope(task_id);
