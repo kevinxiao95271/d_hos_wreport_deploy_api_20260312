@@ -24,7 +24,15 @@ public class DwRecordDetailVO {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long taskId;
     private String taskName;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long orgId;
     private String orgName;
+    /** normal / daily_work */
+    private String taskType;
+    /** 统计年度，daily_work 任务时有值，如 "2025" */
+    private String statYear;
+    /** 统计季度 1-4，null 表示年度任务 */
+    private Integer statQuarter;
     /** 0=草稿 1=已提交 2=已通过 3=已驳回 */
     private Integer status;
     private String auditRemark;

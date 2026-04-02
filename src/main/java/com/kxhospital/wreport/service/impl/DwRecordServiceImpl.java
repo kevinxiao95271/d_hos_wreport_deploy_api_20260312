@@ -448,6 +448,10 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setRecordId(rid);
         vo.setTaskId(record.getTaskId());
         vo.setTaskName(task != null ? task.getTaskName() : null);
+        vo.setTaskType(task != null ? task.getTaskType() : null);
+        vo.setStatYear(task != null ? task.getStatYear() : null);
+        vo.setStatQuarter(task != null ? task.getStatQuarter() : null);
+        vo.setOrgId(record.getOrgId());
         vo.setOrgName(record.getOrgName());
         vo.setStatus(record.getStatus());
         vo.setAuditRemark(record.getAuditRemark());
