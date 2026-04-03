@@ -328,6 +328,13 @@ public class DwRecordServiceImpl implements DwRecordService {
         if ("publication".equals(req.getBonusType()) && req.getPubDate() == null) {
             throw new BusinessException(400, "出版日期不能为空");
         }
+        // publication 只有 pubDate，comp 时间字段对其无意义，提前清零避免前端初始化值触发校验
+        if ("publication".equals(req.getBonusType())) {
+            req.setCompStartDate(null);
+            req.setCompStartHalf(null);
+            req.setCompEndDate(null);
+            req.setCompEndHalf(null);
+        }
         HalfDayRange compRange = normalizeHalfDayRange(
                 req.getCompStartDate(), req.getCompStartHalf(),
                 req.getCompEndDate(), req.getCompEndHalf(),
