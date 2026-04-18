@@ -32,6 +32,25 @@ public class DwModuleConfig implements Serializable {
     private Integer sortOrder;
     /** 附件/填报上传提示语，展示给机构用户 */
     private String uploadHint;
+
+    /**
+     * 父模块 key（NULL=顶级节点或加分项）。
+     * 大类容器节点的 parent_module_key 为 NULL；叶子子项指向所属大类的 module_key。
+     */
+    private String parentModuleKey;
+
+    /**
+     * 是否为叶子节点（可填报/上传）。
+     * FALSE=大类容器，不填报，仅做分组展示；TRUE=实际填报项（默认）。
+     */
+    private Boolean isLeaf;
+
+    /**
+     * 是否为加分项。
+     * TRUE=加分项（bonus_pub/bonus_comp/bonus_admin 等），独立分组展示。
+     */
+    private Boolean isBonus;
+
     @TableField(fill = FieldFill.INSERT) private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE) private LocalDateTime updateTime;
 }

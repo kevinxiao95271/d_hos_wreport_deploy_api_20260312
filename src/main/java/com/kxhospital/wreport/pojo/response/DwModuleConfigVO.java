@@ -28,6 +28,24 @@ public class DwModuleConfigVO {
     private Boolean isEnabled;
     private Integer sortOrder;
     private String uploadHint;
+
+    /**
+     * 父模块 key（null=顶级或加分项）。
+     * 前端据此将子项挂到对应大类下渲染。
+     */
+    private String parentModuleKey;
+
+    /**
+     * 是否为叶子节点（可填报/上传）。
+     * false=大类容器，前端只渲染标题；true=实际填报项。
+     */
+    private Boolean isLeaf;
+
+    /**
+     * 是否为加分项。前端据此将其归入"加分项"分组独立展示。
+     */
+    private Boolean isBonus;
+
     /**
      * 该模块下已启用的扩展字段定义列表（子记录级动态表单字段）。
      * module_self_score 为模块级自评分，不在此列表中，其值通过

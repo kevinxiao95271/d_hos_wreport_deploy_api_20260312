@@ -36,6 +36,9 @@ public interface DwRecordService {
     DwSurvey saveSurvey(DwSurveyRequest req, LoginUser user);
     void deleteSurvey(Long surveyId, LoginUser user);
 
+    // ── 三级质控网络完善 ───────────────────────────────
+    DwNetworkBuild saveNetworkBuild(DwNetworkBuildRequest req, LoginUser user);
+
     // ── 经费执行 ──────────────────────────────────────
     DwFunding saveFunding(DwFundingRequest req, LoginUser user);
 

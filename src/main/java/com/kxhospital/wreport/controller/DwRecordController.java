@@ -5,18 +5,23 @@ import com.kxhospital.wreport.common.R;
 import com.kxhospital.wreport.common.UserContext;
 import com.kxhospital.wreport.entity.*;
 import com.kxhospital.wreport.pojo.request.*;
+import com.kxhospital.wreport.pojo.request.DwNetworkBuildRequest;
 import com.kxhospital.wreport.pojo.response.DwAdminOverviewVO;
 import com.kxhospital.wreport.pojo.response.DwAttachmentVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO;
 import com.kxhospital.wreport.pojo.response.DwYearQuarterRecordVO;
+import com.kxhospital.wreport.service.DwConfigService;
 import com.kxhospital.wreport.service.DwRecordService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 
 @Tag(name = "日常工作模块 — 填报")
@@ -27,6 +32,7 @@ import java.util.List;
 public class DwRecordController {
 
     private final DwRecordService service;
+    private final DwConfigService  configService;
 
     // ── 记录 ─────────────────────────────────────────────────────
 
@@ -143,6 +149,16 @@ public class DwRecordController {
         return R.ok();
     }
 
+    // ── 三级质控网络完善 ──────────────────────────────────────────
+
+    @Operation(summary = "保存三级质控网络完善数据（每条记录只有一份，重复调用则覆盖）",
+               description = "cityCenterIds / countyCenterIds 为 JSON 数组字符串，由前端树选择器生成；" +
+                             "count 由前端统计末级选中节点数后传入。管理员据此数据自行评分，系统不自动计分。")
+    @PostMapping("/network-build/save")
+    public R<DwNetworkBuild> saveNetworkBuild(@RequestBody DwNetworkBuildRequest req) {
+        return R.ok(service.saveNetworkBuild(req, user()));
+    }
+
     // ── 经费执行 ─────────────────────────────────────────────────
 
     @Operation(summary = "保存经费执行数据（每条记录只有一份，重复调用则覆盖）")
@@ -165,6 +181,36 @@ public class DwRecordController {
     public R<Void> deleteBonus(@PathVariable Long id) {
         service.deleteBonus(id, user());
         return R.ok();
+    }
+
+    // ── 模块自评分（便捷端点） ────────────────────────────────────
+
+    @Operation(summary = "保存模块自评分",
+               description = "便捷端点：将 module_self_score 写入扩展字段值表。\n" +
+                             "subRecordId：多条记录型模块（meeting/training/guidance/survey/bonus_pub/bonus_comp）传子记录ID；\n" +
+                             "纯上传型/表单型模块（work_plan/annual_work/indicator_db/network_build/indicator_monitor/national_report/prov_report/activity_report/funding/bonus_admin）不传（传 null）。\n" +
+                             "score 传 null 时清空自评分。")
+    @PostMapping("/module/score/save")
+    public R<Void> saveModuleScore(@RequestBody ModuleScoreRequest req) {
+        LoginUser u = user();
+        String scoreStr = req.getScore() != null ? req.getScore().stripTrailingZeros().toPlainString() : null;
+        configService.saveFieldValues(
+                req.getRecordId(),
+                req.getModuleKey(),
+                req.getSubRecordId(),
+                Collections.singletonMap("module_self_score", scoreStr),
+                u);
+        return R.ok();
+    }
+
+    @Data
+    public static class ModuleScoreRequest {
+        private Long       recordId;
+        private String     moduleKey;
+        /** 多条记录型模块的子记录ID；纯上传/表单型传 null */
+        private Long       subRecordId;
+        /** 自评分（传 null 表示清空） */
+        private BigDecimal score;
     }
 
     // ── 附件 ─────────────────────────────────────────────────────

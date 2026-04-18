@@ -63,17 +63,37 @@ public class DwRecordDetailVO {
     private List<DwAttachmentVO>              adminResponseFiles;
     private Map<String, List<DwAttachmentVO>> activityReportFiles;
 
+    // ── 新增纯上传模块 ────────────────────────────
+    /** 1.3 质控指标数据库建设 */
+    private List<DwAttachmentVO> indicatorDbFiles;
+    /** 4.1 质控指标监测 */
+    private List<DwAttachmentVO> indicatorMonitorFiles;
+    /** 4.2 国家质量安全报告分册 */
+    private List<DwAttachmentVO> nationalReportFiles;
+    /** 4.3 浙江省质量安全报告 */
+    private List<DwAttachmentVO> provReportFiles;
+    /** 加分项3：行政指令性任务（双槽：national_task / prov_task） */
+    private Map<String, List<DwAttachmentVO>> bonusAdminFiles;
+
     // ── 纯上传模块扩展字段值（record 级） ────────────
     private Map<String, String> annualWorkExtra;
     private Map<String, String> itConstructionExtra;
     private Map<String, String> workPlanExtra;
     private Map<String, String> adminResponseExtra;
     private Map<String, String> activityReportExtra;
+    private Map<String, String> indicatorDbExtra;
+    private Map<String, String> indicatorMonitorExtra;
+    private Map<String, String> nationalReportExtra;
+    private Map<String, String> provReportExtra;
+    private Map<String, String> bonusAdminExtra;
 
     // ── 表单型模块 ──────────────────────────────────
     private DwFunding       funding;
     private Map<String, String> fundingExtra;
     private List<DwBonusVO> bonuses;
+
+    // ── 2.1 三级质控网络完善（单条树选择） ────────────
+    private DwNetworkBuildVO networkBuild;
 
     // ── 嵌套 VO ────────────────────────────────────
 
@@ -192,6 +212,29 @@ public class DwRecordDetailVO {
         private String compStartHalf;
         private String compEndDate;
         private String compEndHalf;
+        private List<DwAttachmentVO> evidences;
+        private Map<String, String> extraValues;
+    }
+
+    /** 2.1 三级质控网络完善（单条，复用指导模块的树回显结构） */
+    @Data
+    public static class DwNetworkBuildVO {
+        @JsonSerialize(using = ToStringSerializer.class)
+        private Long id;
+        private Integer cityCenterCount;
+        /** 已勾选市级中心 ID 列表（JSON 数组字符串，供前端回显树选择器） */
+        private String cityCenterIds;
+        /** 已勾选市级中心名称列表 */
+        private List<String> cityCenterNames;
+        private Integer countyCenterCount;
+        /** 已勾选区县中心 ID 列表（JSON 数组字符串） */
+        private String countyCenterIds;
+        /** 已勾选区县中心名称列表（平铺） */
+        private List<String> countyCenterNames;
+        /** 已勾选区县中心按所属市分组（供管理端分组展示） */
+        private List<CountyCenterGroupVO> countyCenterGroups;
+        private java.math.BigDecimal selfScore;
+        /** 佐证材料 */
         private List<DwAttachmentVO> evidences;
         private Map<String, String> extraValues;
     }

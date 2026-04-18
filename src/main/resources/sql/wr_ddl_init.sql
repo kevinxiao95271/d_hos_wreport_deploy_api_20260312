@@ -864,3 +864,340 @@ CREATE TABLE IF NOT EXISTS dw_task_module_scope (
     CONSTRAINT pk_dw_task_module_scope PRIMARY KEY (id)
 );
 CREATE INDEX IF NOT EXISTS idx_dw_task_module_scope_tid ON dw_task_module_scope(task_id);
+
+-- ===========================================================
+-- 2025年度评分表 20260417 结构升级
+-- 新增：5大类层级支持、dw_network_build 表、新模块数据
+-- ===========================================================
+
+-- ① dw_module_config 新增层级字段
+ALTER TABLE dw_module_config
+    ADD COLUMN IF NOT EXISTS parent_module_key VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS is_leaf           BOOLEAN NOT NULL DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS is_bonus          BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- ② 三级质控网络完善（单条记录，两棵树选择）
+CREATE TABLE IF NOT EXISTS dw_network_build (
+    id                  BIGINT        NOT NULL,
+    record_id           BIGINT        NOT NULL,
+    city_center_count   INT           NOT NULL DEFAULT 0,
+    city_center_ids     TEXT,                     -- JSON 数组，如 [101,103]
+    county_center_count INT           NOT NULL DEFAULT 0,
+    county_center_ids   TEXT,                     -- JSON 数组
+    self_score          NUMERIC(5,2),
+    del_flag            SMALLINT      NOT NULL DEFAULT 0,
+    create_user         BIGINT,
+    create_time         TIMESTAMP     NOT NULL DEFAULT NOW(),
+    update_time         TIMESTAMP     NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_dw_network_build     PRIMARY KEY (id),
+    CONSTRAINT uq_dw_network_build_rid UNIQUE (record_id)
+);
+CREATE INDEX IF NOT EXISTS idx_dw_network_build_rid ON dw_network_build(record_id);
+
+-- ③ 新增5个大类容器节点（is_leaf=FALSE，不填报，仅分组展示）
+INSERT INTO dw_module_config
+    (id, module_key, module_name, score_max, score_rule, is_enabled, sort_order, upload_hint, is_leaf, is_bonus)
+VALUES
+(9000000000000020, 'cat_plan',
+ '制定规划/目标/流程，建立数据库', 30,
+ '满分30分，含三个子项：年度计划总结（10分）、落实国家及省级政策举措（10分）、质控指标数据库建设（10分）',
+ TRUE, 10, '', FALSE, FALSE),
+(9000000000000021, 'cat_network',
+ '健全质控网络，布置工作任务', 10,
+ '满分10分，含两个子项：三级质控网络完善（4分）、布置年度质控工作任务（6分）',
+ TRUE, 20, '', FALSE, FALSE),
+(9000000000000022, 'cat_training',
+ '培训、检查、考核', 20,
+ '满分20分，含三个子项：质控培训（6分）、质控调研（8分）、质控指导（6分）',
+ TRUE, 30, '', FALSE, FALSE),
+(9000000000000023, 'cat_report',
+ '收集/分析/反馈/报送', 30,
+ '满分30分，含三个子项：质控指标监测（10分）、国家质量安全报告分册（10分）、浙江省质量安全报告（10分）',
+ TRUE, 40, '', FALSE, FALSE),
+(9000000000000024, 'cat_compliance',
+ '管理规范性', 10,
+ '满分10分，含两个子项：质控活动报备（4分）、经费管理（6分）',
+ TRUE, 50, '', FALSE, FALSE),
+(9000000000000025, 'cat_bonus',
+ '加分项', 10,
+ '满分10分，含三个加分项：丛书/指南（3分）、技能竞赛（3分）、行政指令性任务（4分）',
+ TRUE, 60, '', FALSE, FALSE)
+ON CONFLICT (module_key) DO UPDATE SET
+    module_name = EXCLUDED.module_name, score_max = EXCLUDED.score_max,
+    score_rule  = EXCLUDED.score_rule,  is_leaf    = EXCLUDED.is_leaf,
+    sort_order  = EXCLUDED.sort_order,  update_time = NOW();
+
+-- ④ 更新已有叶子节点：挂父级、调分值、刷 wording
+-- 1.1 年度计划总结（原 work_plan，10分不变）
+UPDATE dw_module_config SET
+    module_name       = '年度计划总结',
+    parent_module_key = 'cat_plan',
+    score_max         = 10,
+    sort_order        = 11,
+    upload_hint       = '请分别上传年度工作计划及年度工作总结（PDF/DOCX），需加盖公章，并确保按规定时限报送',
+    score_rule        = '有计划、总结（10分）；年度工作计划目标清晰、责任明确、措施可行（4分）；年度工作总结完成情况（4分）；计划与总结按规定时限报送（2分）',
+    update_time       = NOW()
+WHERE module_key = 'work_plan';
+
+-- 1.2 落实国家及省级政策举措（原 annual_work，20分→10分）
+UPDATE dw_module_config SET
+    module_name       = '落实国家及省级政策举措',
+    parent_module_key = 'cat_plan',
+    score_max         = 10,
+    sort_order        = 12,
+    upload_hint       = '请上传工作指引落实相关佐证材料，包括制定下发文件及推进节点记录（需加盖公章）',
+    score_rule        = '落实工作指引内容，制定并下发且按时间节点推进（10分）；是否存在因主观原因导致重大任务未完成的情况（酌情扣分）',
+    update_time       = NOW()
+WHERE module_key = 'annual_work';
+
+-- 2.2 布置年度质控工作任务（原 meeting，10分→6分）
+UPDATE dw_module_config SET
+    module_name       = '布置年度质控工作任务',
+    parent_module_key = 'cat_network',
+    score_max         = 6,
+    sort_order        = 22,
+    upload_hint       = '请上传年度质控工作任务布置相关材料（通知文件、会议纪要等），包括会议名称、内容、时间、人数、形式及签到表',
+    score_rule        = '未布置（0分）；定期布置，传达国家及省级质控工作要求，内容契合工作计划（6分）',
+    update_time       = NOW()
+WHERE module_key = 'meeting';
+
+-- 3.1 质控培训（原 training，10分→6分）
+UPDATE dw_module_config SET
+    parent_module_key = 'cat_training',
+    score_max         = 6,
+    sort_order        = 31,
+    upload_hint       = '请上传每次培训材料（培训名称、内容、时间、人数、形式、覆盖率等）及现场照片',
+    score_rule        = '围绕年度工作重点定期开展质控相关培训；培训内容是否覆盖省市县医疗工作者（6分）',
+    update_time       = NOW()
+WHERE module_key = 'training';
+
+-- 3.2 质控调研（原 survey，10分→8分）
+UPDATE dw_module_config SET
+    parent_module_key = 'cat_training',
+    score_max         = 8,
+    sort_order        = 32,
+    upload_hint       = '请上传调研报告及现场照片（调研名称、内容、时间、形式等），调研内容须围绕工作指引及年度重点',
+    score_rule        = '开展调研（4分）；调研内容围绕工作指引及年度工作重点、有详细分析及工作建议（4分）',
+    update_time       = NOW()
+WHERE module_key = 'survey';
+
+-- 3.3 质控指导（原 guidance，10分→6分）
+UPDATE dw_module_config SET
+    parent_module_key = 'cat_training',
+    score_max         = 6,
+    sort_order        = 33,
+    upload_hint       = '请通过树选择器选择指导的市级及区县质控中心，并上传现场指导的佐证材料',
+    score_rule        = '针对市、县级质控中心存在问题或薄弱环节开展指导（3分）；针对医疗机构本专业问题或薄弱环节开展指导（3分）',
+    update_time       = NOW()
+WHERE module_key = 'guidance';
+
+-- 5.1 质控活动报备（原 activity_report，10分→4分）
+UPDATE dw_module_config SET
+    parent_module_key = 'cat_compliance',
+    score_max         = 4,
+    sort_order        = 51,
+    upload_hint       = '请上传钉钉平台事前报备截图及事后报备截图（图片/PDF），确保报备内容与实际执行一致',
+    score_rule        = '未报备（0分）；仅事前或事后报备（2分）；事前事后均报备且内容与实际执行一致（4分）',
+    update_time       = NOW()
+WHERE module_key = 'activity_report';
+
+-- 5.2 经费管理（原 funding，10分→6分）
+UPDATE dw_module_config SET
+    parent_module_key = 'cat_compliance',
+    score_max         = 6,
+    sort_order        = 52,
+    upload_hint       = '请填报财政专项拨款（万元）及执行率，以及挂靠医院配套拨款（万元）及执行率',
+    score_rule        = '挂靠医院是否配套经费（1分）；中心是否制定经费管理相关制度（2分）；财政专项执行率≥90%（3分）；<90%（0分）；医院配套执行率≥90%（2分）；≥60%（1分）；<60%（0分）',
+    update_time       = NOW()
+WHERE module_key = 'funding';
+
+-- 加分项分值更新（5分→3分），同时挂入 cat_bonus 父级
+UPDATE dw_module_config SET
+    is_bonus          = TRUE,
+    parent_module_key = 'cat_bonus',
+    score_max         = 3,
+    sort_order        = 101,
+    upload_hint       = '近两年（2024-2025年）第一署名为质控中心或技术指导中心的丛书、指南、规范、共识，请上传出版证明（PDF/DOCX）',
+    score_rule        = '第一署名为质控中心或技术指导中心（2024-2025年期间）：丛书/指南/共识（3分）；标准/规范（2分）',
+    update_time       = NOW()
+WHERE module_key = 'bonus_pub';
+
+UPDATE dw_module_config SET
+    is_bonus          = TRUE,
+    parent_module_key = 'cat_bonus',
+    score_max         = 3,
+    sort_order        = 102,
+    upload_hint       = '近两年（2024-2025年）以质控中心或技术指导中心名义开展技能竞赛，请上传竞赛证明（PDF/DOCX）',
+    score_rule        = '以质控中心或技术指导中心名义开展技能竞赛（2024-2025年期间）：省总工会、省卫健委联合主办（3分）；其他形式（2分）',
+    update_time       = NOW()
+WHERE module_key = 'bonus_comp';
+
+-- ⑤ 新增6个全新叶子节点
+INSERT INTO dw_module_config
+    (id, module_key, module_name, score_max, score_rule, is_enabled, sort_order, upload_hint, parent_module_key, is_leaf, is_bonus)
+VALUES
+-- 1.3 质控指标数据库建设
+(9000000000000030, 'indicator_db',
+ '质控指标数据库建设', 10,
+ '有监测指标（6分）；质控指标数据库建设（4分）',
+ TRUE, 13,
+ '请上传质控指标数据库或监测指标相关材料（PDF/DOCX/XLSX）',
+ 'cat_plan', TRUE, FALSE),
+
+-- 2.1 三级质控网络完善
+(9000000000000031, 'network_build',
+ '三级质控网络完善', 4,
+ '未成立（0分）；部分市、县成立（1分）；市级全覆盖（2分）；省市县全部成立（4分）',
+ TRUE, 21,
+ '请通过树选择器标注已建立质控中心的市级及区县单位范围，并上传相关证明材料（PDF/DOCX）',
+ 'cat_network', TRUE, FALSE),
+
+-- 4.1 质控指标监测
+(9000000000000032, 'indicator_monitor',
+ '质控指标监测', 10,
+ '未监测（0分）；总体水平下降（2分）；总体水平保持稳定（5分）；总体水平提高（10分）',
+ TRUE, 41,
+ '请上传质控指标监测数据或年度分析报告（PDF/DOCX/XLSX），管理员将对照指标变化趋势评分',
+ 'cat_report', TRUE, FALSE),
+
+-- 4.2 国家质量安全报告分册
+(9000000000000033, 'national_report',
+ '国家质量安全报告分册', 10,
+ '参与撰写《医疗服务与质量安全报告》国家分册（10分）',
+ TRUE, 42,
+ '请上传参与撰写《医疗服务与质量安全报告》国家分册的证明文件或相关内容（PDF/DOCX）',
+ 'cat_report', TRUE, FALSE),
+
+-- 4.3 浙江省质量安全报告
+(9000000000000034, 'prov_report',
+ '浙江省质量安全报告', 10,
+ '参与撰写《浙江省医疗服务与质量安全报告》（10分）',
+ TRUE, 43,
+ '请上传参与撰写《浙江省医疗服务与质量安全报告》的证明文件或相关内容（PDF/DOCX）',
+ 'cat_report', TRUE, FALSE),
+
+-- 加分项3：积极完成行政指令性任务
+(9000000000000035, 'bonus_admin',
+ '加分项-行政指令性任务', 4,
+ '承担卫生健康行政部门交办的工作任务：国家工作任务（2分）；浙江省工作任务（2分）',
+ TRUE, 103,
+ '请按国家任务和浙江省任务分别上传承担行政部门交办工作任务的证明材料（PDF/DOCX）',
+ 'cat_bonus', TRUE, TRUE)
+
+ON CONFLICT (module_key) DO UPDATE SET
+    module_name       = EXCLUDED.module_name,
+    score_max         = EXCLUDED.score_max,
+    score_rule        = EXCLUDED.score_rule,
+    parent_module_key = EXCLUDED.parent_module_key,
+    is_leaf           = EXCLUDED.is_leaf,
+    is_bonus          = EXCLUDED.is_bonus,
+    sort_order        = EXCLUDED.sort_order,
+    upload_hint       = EXCLUDED.upload_hint,
+    update_time       = NOW();
+
+-- ⑥ 废弃旧节点（保留数据，仅禁用）
+UPDATE dw_module_config SET is_enabled = FALSE, update_time = NOW()
+WHERE module_key IN ('it_construction', 'admin_response');
+
+-- ⑦ score_desc 刷新（机构端可见，不含分值）
+UPDATE dw_module_config SET score_desc =
+'本大类含三项工作：年度计划总结、落实国家及省级政策举措、质控指标数据库建设。'
+WHERE module_key = 'cat_plan';
+
+UPDATE dw_module_config SET score_desc =
+'本大类含两项工作：三级质控网络完善、年度质控工作任务布置。'
+WHERE module_key = 'cat_network';
+
+UPDATE dw_module_config SET score_desc =
+'本大类含三项工作：质控培训、质控调研、质控指导。'
+WHERE module_key = 'cat_training';
+
+UPDATE dw_module_config SET score_desc =
+'本大类含三项工作：质控指标监测、国家质量安全报告分册撰写、浙江省质量安全报告撰写。'
+WHERE module_key = 'cat_report';
+
+UPDATE dw_module_config SET score_desc =
+'本大类含两项工作：质控活动报备、经费管理。'
+WHERE module_key = 'cat_compliance';
+
+UPDATE dw_module_config SET score_desc =
+'本大类含三个加分项：丛书/指南、技能竞赛、行政指令性任务。'
+WHERE module_key = 'cat_bonus';
+
+UPDATE dw_module_config SET score_desc =
+'请提交年度工作计划及年度工作总结（需加盖公章），并确保按规定时限报送。'
+WHERE module_key = 'work_plan';
+
+UPDATE dw_module_config SET score_desc =
+'请提交工作指引落实相关佐证材料，包括制定下发文件及推进节点记录（需加盖公章）。'
+WHERE module_key = 'annual_work';
+
+UPDATE dw_module_config SET score_desc =
+'请上传质控指标数据库或监测指标相关材料。'
+WHERE module_key = 'indicator_db';
+
+UPDATE dw_module_config SET score_desc =
+'请通过树选择器标注已建立质控中心的市级及区县单位覆盖范围，并上传相关证明材料。'
+WHERE module_key = 'network_build';
+
+UPDATE dw_module_config SET score_desc =
+'请上传年度质控工作任务布置相关材料（通知文件、会议纪要等），确保内容契合工作计划，并提供会议签到表。'
+WHERE module_key = 'meeting';
+
+UPDATE dw_module_config SET score_desc =
+'请上传每次培训材料（培训名称、内容、时间、人数、形式、覆盖率等）及现场照片。'
+WHERE module_key = 'training';
+
+UPDATE dw_module_config SET score_desc =
+'请上传调研报告及现场照片（调研名称、内容、时间、形式等），调研内容须围绕年度工作重点。'
+WHERE module_key = 'survey';
+
+UPDATE dw_module_config SET score_desc =
+'请通过树选择器选择指导的市级及区县质控中心，并上传现场指导的佐证材料。'
+WHERE module_key = 'guidance';
+
+UPDATE dw_module_config SET score_desc =
+'请上传质控指标监测数据或年度分析报告，管理员将对照指标变化趋势进行评分。'
+WHERE module_key = 'indicator_monitor';
+
+UPDATE dw_module_config SET score_desc =
+'请上传参与撰写《医疗服务与质量安全报告》国家分册的证明文件或相关内容。'
+WHERE module_key = 'national_report';
+
+UPDATE dw_module_config SET score_desc =
+'请上传参与撰写《浙江省医疗服务与质量安全报告》的证明文件或相关内容。'
+WHERE module_key = 'prov_report';
+
+UPDATE dw_module_config SET score_desc =
+'请上传钉钉平台事前报备截图及事后报备截图，确保报备内容与实际执行一致。'
+WHERE module_key = 'activity_report';
+
+UPDATE dw_module_config SET score_desc =
+'请填报财政专项拨款（万元）及执行率，以及挂靠医院配套拨款（万元）及执行率。'
+WHERE module_key = 'funding';
+
+UPDATE dw_module_config SET score_desc =
+'近两年（2024-2025年）第一署名为质控中心或技术指导中心的丛书、指南、规范、共识等，请上传出版证明。'
+WHERE module_key = 'bonus_pub';
+
+UPDATE dw_module_config SET score_desc =
+'近两年（2024-2025年）以质控中心或技术指导中心名义开展的技能竞赛，请上传竞赛证明文件。'
+WHERE module_key = 'bonus_comp';
+
+UPDATE dw_module_config SET score_desc =
+'请按国家任务和浙江省任务分别上传承担卫生健康行政部门交办工作任务的证明材料。'
+WHERE module_key = 'bonus_admin';
+
+-- ⑧ dw_field_config 补充新叶子节点的自评分字段
+INSERT INTO dw_field_config
+    (id, module_key, field_key, field_name, field_type, is_required, sort_order, placeholder, is_enabled)
+VALUES
+(9000000000001020, 'indicator_db',      'module_self_score', '项目自评分', 'number', FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+(9000000000001021, 'network_build',     'module_self_score', '项目自评分', 'number', FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+(9000000000001022, 'indicator_monitor', 'module_self_score', '项目自评分', 'number', FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+(9000000000001023, 'national_report',   'module_self_score', '项目自评分', 'number', FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+(9000000000001024, 'prov_report',       'module_self_score', '项目自评分', 'number', FALSE, 1, '请填写该项目自评分（0-满分）', TRUE),
+(9000000000001025, 'bonus_admin',       'module_self_score', '项目自评分', 'number', FALSE, 1, '请填写该项目自评分（0-满分）', TRUE)
+ON CONFLICT (module_key, field_key) DO UPDATE SET
+    is_enabled  = TRUE,
+    update_time = NOW();

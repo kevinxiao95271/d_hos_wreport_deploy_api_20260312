@@ -43,9 +43,10 @@ public class DwRecordServiceImpl implements DwRecordService {
     private final DwTrainingMapper   trainingMapper;
     private final DwGuidanceMapper   guidanceMapper;
     private final DwSurveyMapper     surveyMapper;
-    private final DwFundingMapper    fundingMapper;
-    private final DwBonusMapper      bonusMapper;
-    private final DwAttachmentMapper attachmentMapper;
+    private final DwFundingMapper       fundingMapper;
+    private final DwBonusMapper         bonusMapper;
+    private final DwNetworkBuildMapper  networkBuildMapper;
+    private final DwAttachmentMapper    attachmentMapper;
     private final MinioService       minioService;
     private final MinioProperties    minioProps;
     private final com.kxhospital.wreport.service.DwConfigService configService;
@@ -374,6 +375,27 @@ public class DwRecordServiceImpl implements DwRecordService {
     }
 
     // ─────────────────────────────────────────────────────────────
+    // 三级质控网络完善（单条，存在则覆盖）
+    // ─────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public DwNetworkBuild saveNetworkBuild(DwNetworkBuildRequest req, LoginUser user) {
+        requireEditableRecord(req.getRecordId(), user);
+        DwNetworkBuild existing = networkBuildMapper.findByRecord(req.getRecordId());
+        DwNetworkBuild entity = existing != null ? existing : new DwNetworkBuild();
+        entity.setRecordId(req.getRecordId());
+        entity.setCityCenterCount(req.getCityCenterCount() != null ? req.getCityCenterCount() : 0);
+        entity.setCityCenterIds(req.getCityCenterIds());
+        entity.setCountyCenterCount(req.getCountyCenterCount() != null ? req.getCountyCenterCount() : 0);
+        entity.setCountyCenterIds(req.getCountyCenterIds());
+        entity.setSelfScore(req.getSelfScore());
+        if (existing == null) networkBuildMapper.insert(entity);
+        else networkBuildMapper.updateById(entity);
+        return entity;
+    }
+
+    // ─────────────────────────────────────────────────────────────
     // 附件上传 / 删除
     // ─────────────────────────────────────────────────────────────
 
@@ -553,6 +575,39 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setActivityReportFiles(activityMap);
         vo.setActivityReportExtra(extraMap.getOrDefault("activity_report|null", Collections.emptyMap()));
 
+        // 新增：纯上传模块（indicator_db / indicator_monitor / national_report / prov_report）
+        vo.setIndicatorDbFiles(toVOList(attMap.get("indicator_db|null|evidence")));
+        vo.setIndicatorDbExtra(extraMap.getOrDefault("indicator_db|null", Collections.emptyMap()));
+
+        vo.setIndicatorMonitorFiles(toVOList(attMap.get("indicator_monitor|null|evidence")));
+        vo.setIndicatorMonitorExtra(extraMap.getOrDefault("indicator_monitor|null", Collections.emptyMap()));
+
+        vo.setNationalReportFiles(toVOList(attMap.get("national_report|null|evidence")));
+        vo.setNationalReportExtra(extraMap.getOrDefault("national_report|null", Collections.emptyMap()));
+
+        vo.setProvReportFiles(toVOList(attMap.get("prov_report|null|evidence")));
+        vo.setProvReportExtra(extraMap.getOrDefault("prov_report|null", Collections.emptyMap()));
+
+        // 新增：加分项3 行政指令性任务（双槽）
+        Map<String, List<DwAttachmentVO>> bonusAdminMap = new LinkedHashMap<>();
+        bonusAdminMap.put("national_task", toVOList(attMap.get("bonus_admin|null|national_task")));
+        bonusAdminMap.put("prov_task",     toVOList(attMap.get("bonus_admin|null|prov_task")));
+        vo.setBonusAdminFiles(bonusAdminMap);
+        vo.setBonusAdminExtra(extraMap.getOrDefault("bonus_admin|null", Collections.emptyMap()));
+
+        // 新增：2.1 三级质控网络完善
+        DwNetworkBuild nb = networkBuildMapper.findByRecord(rid);
+        if (nb != null) {
+            DwRecordDetailVO.DwNetworkBuildVO nbVO = new DwRecordDetailVO.DwNetworkBuildVO();
+            BeanUtils.copyProperties(nb, nbVO);
+            nbVO.setCityCenterNames(resolveRegionNames(nb.getCityCenterIds(), regionMap));
+            nbVO.setCountyCenterNames(resolveRegionNames(nb.getCountyCenterIds(), regionMap));
+            nbVO.setCountyCenterGroups(groupCountyCenters(nb.getCountyCenterIds(), regionMap));
+            nbVO.setEvidences(toVOList(attMap.get("network_build|null|evidence")));
+            nbVO.setExtraValues(extraMap.getOrDefault("network_build|null", Collections.emptyMap()));
+            vo.setNetworkBuild(nbVO);
+        }
+
         // 经费执行
         vo.setFunding(fundingMapper.findByRecord(rid));
         vo.setFundingExtra(extraMap.getOrDefault("funding|null", Collections.emptyMap()));
@@ -657,10 +712,15 @@ public class DwRecordServiceImpl implements DwRecordService {
 
     private Map<String, java.math.BigDecimal> buildModuleSelfScores(Map<String, Map<String, String>> extraMap) {
         List<String> modules = Arrays.asList(
+                // 旧模块（保留兼容）
                 "meeting", "training", "guidance", "survey",
                 "annual_work", "it_construction", "work_plan",
                 "admin_response", "activity_report", "funding",
-                "bonus_pub", "bonus_comp"
+                "bonus_pub", "bonus_comp",
+                // 新增模块（2025年度评分表 20260417）
+                "indicator_db", "network_build",
+                "indicator_monitor", "national_report", "prov_report",
+                "bonus_admin"
         );
         Map<String, java.math.BigDecimal> map = new LinkedHashMap<>();
         for (String module : modules) {
