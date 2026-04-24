@@ -1201,3 +1201,17 @@ VALUES
 ON CONFLICT (module_key, field_key) DO UPDATE SET
     is_enabled  = TRUE,
     update_time = NOW();
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 数据修复：自评分（module_self_score）超出满分的，截断为满分
+-- 每次启动时执行，幂等安全
+-- ─────────────────────────────────────────────────────────────────────────────
+UPDATE dw_field_value fv
+SET    field_value = mc.score_max::TEXT,
+       update_time = NOW()
+FROM   dw_module_config mc
+WHERE  fv.module_key  = mc.module_key
+  AND  fv.field_key   = 'module_self_score'
+  AND  fv.field_value IS NOT NULL
+  AND  fv.field_value ~ '^\d+(\.\d+)?$'
+  AND  fv.field_value::NUMERIC > mc.score_max;

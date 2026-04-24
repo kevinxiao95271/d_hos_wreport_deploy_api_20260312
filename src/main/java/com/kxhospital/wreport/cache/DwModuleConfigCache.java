@@ -72,4 +72,13 @@ public class DwModuleConfigCache implements ApplicationRunner {
         List<DwFieldConfig> list = fieldsByModule.getOrDefault(moduleKey, Collections.emptyList());
         return list.stream().map(DwFieldConfig::getFieldKey).collect(Collectors.toSet());
     }
+
+    /** 返回某模块的满分上限；moduleKey 不存在时返回 null */
+    public java.math.BigDecimal getScoreMax(String moduleKey) {
+        return allModules.stream()
+                .filter(m -> moduleKey.equals(m.getModuleKey()))
+                .findFirst()
+                .map(DwModuleConfig::getScoreMax)
+                .orElse(null);
+    }
 }

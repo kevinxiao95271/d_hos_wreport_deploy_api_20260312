@@ -1,9 +1,11 @@
 package com.kxhospital.wreport.controller;
 
+import com.kxhospital.wreport.cache.DwModuleConfigCache;
 import com.kxhospital.wreport.common.LoginUser;
 import com.kxhospital.wreport.common.R;
 import com.kxhospital.wreport.common.UserContext;
 import com.kxhospital.wreport.entity.*;
+import com.kxhospital.wreport.common.BusinessException;
 import com.kxhospital.wreport.pojo.request.*;
 import com.kxhospital.wreport.pojo.request.DwNetworkBuildRequest;
 import com.kxhospital.wreport.pojo.response.DwAdminOverviewVO;
@@ -31,8 +33,9 @@ import java.util.List;
 @SecurityRequirement(name = "BearerAuth")
 public class DwRecordController {
 
-    private final DwRecordService service;
-    private final DwConfigService  configService;
+    private final DwRecordService    service;
+    private final DwConfigService    configService;
+    private final DwModuleConfigCache moduleConfigCache;
 
     // ── 记录 ─────────────────────────────────────────────────────
 
@@ -193,6 +196,13 @@ public class DwRecordController {
     @PostMapping("/module/score/save")
     public R<Void> saveModuleScore(@RequestBody ModuleScoreRequest req) {
         LoginUser u = user();
+        if (req.getScore() != null) {
+            if (req.getScore().compareTo(BigDecimal.ZERO) < 0)
+                throw new BusinessException(400, "自评分不能为负数");
+            java.math.BigDecimal scoreMax = moduleConfigCache.getScoreMax(req.getModuleKey());
+            if (scoreMax != null && req.getScore().compareTo(scoreMax) > 0)
+                throw new BusinessException(400, "自评分不能超过满分 " + scoreMax.stripTrailingZeros().toPlainString() + " 分");
+        }
         String scoreStr = req.getScore() != null ? req.getScore().stripTrailingZeros().toPlainString() : null;
         configService.saveFieldValues(
                 req.getRecordId(),

@@ -1459,6 +1459,158 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
+## DW-八、多条记录型模块（会议 / 培训 / 指导 / 调研）前端渲染指引
+
+> 涉及接口：`year-summary`（年度汇总只读展示）、`meeting/save`、`training/save`、`guidance/save`、`survey/save` 及对应 `delete` 接口
+
+### 8.1 数据来源与结构
+
+> **重要**：季度历史快照已嵌入年度任务详情，**前端只需调一个接口**，无需合并。
+
+年度任务详情接口（填报者 / 管理端通用）：
+
+```
+GET /dw/record/init/{annualTaskId}      # 填报者（自动初始化草稿）
+GET /dw/record/{recordId}               # 管理端（查看指定记录）
+```
+
+返回 `DwRecordDetailVO`，其中 `quarterlySnapshots` 字段自动嵌入 Q4→Q1 只读快照：
+
+```json
+{
+  "recordId": "...",
+  "statQuarter": null,
+  "readOnly": false,
+  "meetings":  [],
+  "trainings": [],
+  "guidances": [],
+  "surveys":   [],
+  "quarterlySnapshots": [
+    {
+      "taskId": "...",
+      "taskName": "2025年度Q4日常工作",
+      "statQuarter": 4,
+      "recordId": "...",
+      "recordStatus": 2,
+      "readOnly": true,
+      "detail": {
+        "readOnly": true,
+        "meetings": [ { "id": "...", "meetingName": "xxx质控会议", ... } ],
+        "trainings": [ ... ],
+        "guidances": [ ... ],
+        "surveys":   [ { "id": "...", "surveyTarget": "xxx质控调研", ... } ]
+      }
+    },
+    { "statQuarter": 3, "readOnly": true, "detail": { ... } },
+    { "statQuarter": 2, "readOnly": true, "detail": { ... } },
+    { "statQuarter": 1, "readOnly": true, "detail": { ... } }
+  ]
+}
+```
+
+**`quarterlySnapshots` 仅当 `statQuarter=null`（年度任务）时有值，季度任务详情该字段为 null。**
+**后端已保证返回顺序为 Q4 → Q3 → Q2 → Q1，前端无需排序或合并。**
+
+`year-summary` 接口保留，供管理端跨机构汇总等独立场景使用。
+
+---
+
+### 8.2 readOnly 字段说明
+
+| 字段路径 | 类型 | 含义 |
+|---|---|---|
+| `row.readOnly` | `Boolean` | 整个季度块是否只读，`year-summary` 接口中**恒为 `true`** |
+| `row.detail.readOnly` | `Boolean` | 详情级只读信号，与 `row.readOnly` 一致 |
+
+**readOnly = true 时，前端必须：**
+- 隐藏每条 meeting / training / guidance / survey 条目的「编辑」「删除」按钮
+- 不渲染「新增」入口（新增会议 / 培训 / 指导 / 调研的按钮）
+- 整个季度数据块以灰态只读形式展示，仅供参考
+
+**readOnly = false 时（机构填报当前季度任务）：**
+- 正常显示「新增」「编辑」「删除」按钮
+- 各操作调用对应 save / delete 接口
+
+---
+
+### 8.3 条目内排序规则（后端已处理，前端直接渲染）
+
+各季度内的条目排序由后端 SQL 保证，**前端按接口返回顺序直接渲染即可，无需做任何 sort / merge 操作**：
+
+| 模块 | 排序规则 |
+|---|---|
+| 会议（meetings） | 会议开始日期 DESC → 上下午 DESC（PM > AM）→ id DESC |
+| 培训（trainings） | 培训开始日期 DESC → 上下午 DESC → id DESC |
+| 指导（guidances） | 指导开始日期 DESC → 上下午 DESC → id DESC |
+| 调研（surveys） | 调研开始日期 DESC → 上下午 DESC → id DESC |
+
+> **上下午字段值**：`"AM"` 上午 / `"PM"` 下午；DESC 排序时 PM 排在 AM 前面。
+
+---
+
+### 8.4 年度任务页面渲染流程（伪代码）
+
+```js
+// 1. 一个接口拿全部数据（年度自身 + 嵌入的季度历史快照）
+const detail = await api.get(`/dw/record/init/${annualTaskId}`)
+
+// detail.readOnly         = false  → 年度任务本身可编辑
+// detail.meetings/...     = []     → 年度任务自己新增的条目
+// detail.quarterlySnapshots        → Q4→Q1 只读快照，后端已排好序
+
+// 2. 渲染年度任务本身（可编辑区域）
+renderAnnualSection({
+  readOnly: detail.readOnly,   // false
+  meetings:  detail.meetings,
+  trainings: detail.trainings,
+  guidances: detail.guidances,
+  surveys:   detail.surveys,
+})
+
+// 3. 渲染各季度历史块（只读，按接口顺序直接渲染，无需 sort/merge）
+for (const row of detail.quarterlySnapshots ?? []) {
+  renderQuarterBlock({
+    title:    row.taskName,          // e.g. "2025年度Q4日常工作"
+    quarter:  row.statQuarter,
+    readOnly: row.readOnly,          // 恒 true
+    meetings:  row.detail?.meetings  ?? [],
+    trainings: row.detail?.trainings ?? [],
+    guidances: row.detail?.guidances ?? [],
+    surveys:   row.detail?.surveys   ?? [],
+  })
+}
+
+// 4. 渲染单条 meeting 条目（以会议为例）
+function renderMeetingItem(item, readOnly) {
+  return `
+    <div class="meeting-item">
+      <span>${item.meetingName}</span>
+      <span>${item.meetingStartDate} ${item.meetingStartHalf === 'AM' ? '上午' : '下午'}</span>
+      <!-- 仅非只读时显示操作按钮 -->
+      ${!readOnly ? `
+        <button @click="editMeeting(item.id)">编辑</button>
+        <button @click="deleteMeeting(item.id)">删除</button>
+      ` : ''}
+    </div>
+  `
+}
+```
+
+---
+
+### 8.5 当前季度填报与历史季度展示区分
+
+| 场景 | 数据来源接口 | readOnly |
+|---|---|---|
+| 填报当前**季度**任务 | `GET /dw/record/init/{taskId}` | `false`（可编辑） |
+| 填报**年度**任务（含历史快照） | `GET /dw/record/init/{annualTaskId}` | 年度自身 `false`；`quarterlySnapshots[i].readOnly` 恒 `true` |
+| 管理端审核年度记录（含历史快照） | `GET /dw/record/{recordId}` | 同上 |
+| 管理端独立跨机构汇总 | `GET /dw/record/year-summary` | `true`（恒只读） |
+
+**前端不再需要单独调 year-summary 来拼接季度数据，年度详情接口已一次性返回全部内容。**
+
+---
+
 ## DW-七、错误码参考
 
 | 错误码/HTTP | 含义 | 处理建议 |

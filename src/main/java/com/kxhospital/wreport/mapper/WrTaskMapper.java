@@ -13,9 +13,9 @@ import java.util.List;
 @Mapper
 public interface WrTaskMapper extends BaseMapper<WrTask> {
 
-    /** 某年度下所有 daily_work 季度任务，按 stat_quarter 排序（null 排最后） */
+    /** 某年度下所有 daily_work 季度任务，按 stat_quarter 倒序（Q4→Q1，null 排最后） */
     @Select("SELECT * FROM wr_task WHERE task_type = 'daily_work' AND stat_year = #{statYear} " +
-            "AND del_flag = 0 ORDER BY stat_quarter NULLS LAST, create_time ASC")
+            "AND del_flag = 0 ORDER BY stat_quarter DESC NULLS LAST, create_time DESC")
     List<WrTask> selectDailyWorkByStatYear(@Param("statYear") String statYear);
     IPage<WrTask> selectPage(Page<WrTask> page,
                              @Param("taskName") String taskName,

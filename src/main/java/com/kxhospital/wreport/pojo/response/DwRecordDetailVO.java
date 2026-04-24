@@ -95,6 +95,13 @@ public class DwRecordDetailVO {
     // ── 2.1 三级质控网络完善（单条树选择） ────────────
     private DwNetworkBuildVO networkBuild;
 
+    /**
+     * 仅年度任务（statQuarter=null）时有值。
+     * 嵌入该年度 Q4→Q1 各季度只读快照，前端无需额外调用 year-summary 接口，
+     * 也无需自行合并/排序，直接按此列表顺序渲染即可（readOnly 恒为 true）。
+     */
+    private List<DwYearQuarterRecordVO> quarterlySnapshots;
+
     // ── 嵌套 VO ────────────────────────────────────
 
     @Data

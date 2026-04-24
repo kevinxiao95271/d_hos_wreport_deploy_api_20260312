@@ -110,12 +110,23 @@ public class DwRecordServiceImpl implements DwRecordService {
         } else {
             oid = user.getOrgId();
         }
-        List<WrTask> tasks = taskMapper.selectDailyWorkByStatYear(statYear.trim());
-        List<DwYearQuarterRecordVO> out = new ArrayList<>();
         boolean onlyApproved = Boolean.TRUE.equals(approvedOnly);
+        return buildQuarterlySnapshots(statYear.trim(), oid, onlyApproved, user);
+    }
+
+    /**
+     * 构建某年度下所有季度任务的只读快照列表（Q4→Q1）。
+     * 仅返回季度任务（statQuarter != null），跳过年度任务自身。
+     * approvedOnly=true 时只返回 status=2（已审核通过）的记录。
+     */
+    private List<DwYearQuarterRecordVO> buildQuarterlySnapshots(
+            String statYear, Long orgId, boolean approvedOnly, LoginUser user) {
+        List<WrTask> tasks = taskMapper.selectDailyWorkByStatYear(statYear);
+        List<DwYearQuarterRecordVO> out = new ArrayList<>();
         for (WrTask t : tasks) {
-            WrRecord rec = recordMapper.findByTaskAndOrg(t.getId(), oid);
-            if (onlyApproved && (rec == null || rec.getStatus() == null || rec.getStatus() != 2)) continue;
+            if (t.getStatQuarter() == null) continue; // 跳过年度任务自身
+            WrRecord rec = recordMapper.findByTaskAndOrg(t.getId(), orgId);
+            if (approvedOnly && (rec == null || rec.getStatus() == null || rec.getStatus() != 2)) continue;
             DwYearQuarterRecordVO row = new DwYearQuarterRecordVO();
             row.setTaskId(t.getId());
             row.setTaskName(t.getTaskName());
@@ -497,13 +508,16 @@ public class DwRecordServiceImpl implements DwRecordService {
         Map<String, Map<String, String>> extraMap = configService.loadAllValues(rid);
         vo.setModuleSelfScores(buildModuleSelfScores(extraMap));
 
+        // 季度任务才打 Q 标签；年度任务自己填的条目 startYearQuarter/quarterIndex 保持 null
+        boolean isQuarterlyTask = task != null && task.getStatQuarter() != null;
+
         // 质控会议
         vo.setMeetings(meetingMapper.listByRecord(rid).stream().map(m -> {
             DwMeetingVO mv = new DwMeetingVO();
             BeanUtils.copyProperties(m, mv);
             mv.setMeetingStartDate(formatDate(m.getMeetingStartDate()));
             mv.setMeetingEndDate(formatDate(m.getMeetingEndDate()));
-            fillStartQuarter(mv, m.getMeetingStartDate());
+            if (isQuarterlyTask) fillStartQuarter(mv, m.getMeetingStartDate());
             mv.setMinutes(toVOList(attMap.get("meeting|" + m.getId() + "|minutes")));
             mv.setPhotos(toVOList(attMap.get("meeting|" + m.getId() + "|photo")));
             mv.setSignins(toVOList(attMap.get("meeting|" + m.getId() + "|signin")));
@@ -517,7 +531,7 @@ public class DwRecordServiceImpl implements DwRecordService {
             BeanUtils.copyProperties(t, tv);
             tv.setTrainingStartDate(formatDate(t.getTrainingStartDate()));
             tv.setTrainingEndDate(formatDate(t.getTrainingEndDate()));
-            fillStartQuarter(tv, t.getTrainingStartDate());
+            if (isQuarterlyTask) fillStartQuarter(tv, t.getTrainingStartDate());
             tv.setMaterials(toVOList(attMap.get("training|" + t.getId() + "|material")));
             tv.setPhotos(toVOList(attMap.get("training|" + t.getId() + "|photo")));
             tv.setExtraValues(extraMap.getOrDefault("training|" + t.getId(), Collections.emptyMap()));
@@ -531,7 +545,7 @@ public class DwRecordServiceImpl implements DwRecordService {
             BeanUtils.copyProperties(g, gv);
             gv.setGuidanceStartDate(formatDate(g.getGuidanceStartDate()));
             gv.setGuidanceEndDate(formatDate(g.getGuidanceEndDate()));
-            fillStartQuarter(gv, g.getGuidanceStartDate());
+            if (isQuarterlyTask) fillStartQuarter(gv, g.getGuidanceStartDate());
             gv.setCityCenterNames(resolveRegionNames(g.getCityCenterIds(), regionMap));
             gv.setCountyCenterNames(resolveRegionNames(g.getCountyCenterIds(), regionMap));
             gv.setCountyCenterGroups(groupCountyCenters(g.getCountyCenterIds(), regionMap));
@@ -546,7 +560,7 @@ public class DwRecordServiceImpl implements DwRecordService {
             BeanUtils.copyProperties(s, sv);
             sv.setSurveyStartDate(formatDate(s.getSurveyStartDate()));
             sv.setSurveyEndDate(formatDate(s.getSurveyEndDate()));
-            fillStartQuarter(sv, s.getSurveyStartDate());
+            if (isQuarterlyTask) fillStartQuarter(sv, s.getSurveyStartDate());
             sv.setReports(toVOList(attMap.get("survey|" + s.getId() + "|report")));
             sv.setPhotos(toVOList(attMap.get("survey|" + s.getId() + "|photo")));
             sv.setExtraValues(extraMap.getOrDefault("survey|" + s.getId(), Collections.emptyMap()));
@@ -623,6 +637,15 @@ public class DwRecordServiceImpl implements DwRecordService {
             bv.setExtraValues(extraMap.getOrDefault("bonus|" + b.getId(), Collections.emptyMap()));
             return bv;
         }).collect(Collectors.toList()));
+
+        // 年度任务（statQuarter=null）时，自动嵌入 Q4→Q1 只读快照
+        // forceReadOnly=true 说明是被 buildQuarterlySnapshots 递归调用，不再嵌套
+        // approvedOnly=true：只有审核通过（status=2）的季度记录才被年度任务采集，全部以 readOnly=true 返回
+        if (!forceReadOnly && task != null && task.getStatQuarter() == null
+                && task.getStatYear() != null) {
+            vo.setQuarterlySnapshots(
+                    buildQuarterlySnapshots(task.getStatYear(), record.getOrgId(), true, user));
+        }
 
         return vo;
     }
