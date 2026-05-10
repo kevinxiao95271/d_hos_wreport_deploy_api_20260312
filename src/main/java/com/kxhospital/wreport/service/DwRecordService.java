@@ -36,6 +36,10 @@ public interface DwRecordService {
     DwSurvey saveSurvey(DwSurveyRequest req, LoginUser user);
     void deleteSurvey(Long surveyId, LoginUser user);
 
+    // ── 质控数据分析报告 ───────────────────────────────
+    DwDataAnalysis saveDataAnalysis(DwDataAnalysisRequest req, LoginUser user);
+    void deleteDataAnalysis(Long dataAnalysisId, LoginUser user);
+
     // ── 三级质控网络完善 ───────────────────────────────
     DwNetworkBuild saveNetworkBuild(DwNetworkBuildRequest req, LoginUser user);
 

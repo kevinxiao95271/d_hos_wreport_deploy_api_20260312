@@ -950,14 +950,14 @@ UPDATE dw_module_config SET
     update_time       = NOW()
 WHERE module_key = 'annual_work';
 
--- 2.2 布置年度质控工作任务（原 meeting，10分→6分）
+-- 2.2 质控会议（原 meeting，10分→6分）
 UPDATE dw_module_config SET
-    module_name       = '布置年度质控工作任务',
+    module_name       = '质控会议',
     parent_module_key = 'cat_network',
     score_max         = 6,
     sort_order        = 22,
-    upload_hint       = '请上传年度质控工作任务布置相关材料（通知文件、会议纪要等），包括会议名称、内容、时间、人数、形式及签到表',
-    score_rule        = '未布置（0分）；定期布置，传达国家及省级质控工作要求，内容契合工作计划（6分）',
+    upload_hint       = '请上传每次质控会议的会议纪要（PDF/DOCX）、现场照片（图片/PDF）及签到表（图片/PDF/DOCX/XLSX）',
+    score_rule        = '未布置（0分）；定期召开质控会议，传达国家及省级质控工作要求，内容契合工作计划（6分）',
     update_time       = NOW()
 WHERE module_key = 'meeting';
 
@@ -1105,7 +1105,7 @@ UPDATE dw_module_config SET score_desc =
 WHERE module_key = 'cat_plan';
 
 UPDATE dw_module_config SET score_desc =
-'本大类含两项工作：三级质控网络完善、年度质控工作任务布置。'
+'本大类含两项工作：三级质控网络完善、质控会议。'
 WHERE module_key = 'cat_network';
 
 UPDATE dw_module_config SET score_desc =
@@ -1141,7 +1141,7 @@ UPDATE dw_module_config SET score_desc =
 WHERE module_key = 'network_build';
 
 UPDATE dw_module_config SET score_desc =
-'请上传年度质控工作任务布置相关材料（通知文件、会议纪要等），确保内容契合工作计划，并提供会议签到表。'
+'请上传每次质控会议材料（会议纪要、现场照片、签到表等），确保内容契合工作计划。'
 WHERE module_key = 'meeting';
 
 UPDATE dw_module_config SET score_desc =
@@ -1201,6 +1201,61 @@ VALUES
 ON CONFLICT (module_key, field_key) DO UPDATE SET
     is_enabled  = TRUE,
     update_time = NOW();
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 质控数据分析报告（多条记录型，季度可填）
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS dw_data_analysis (
+    id              BIGINT        NOT NULL,
+    record_id       BIGINT        NOT NULL,
+    report_name     VARCHAR(200)  NOT NULL,
+    report_date     DATE          NOT NULL,
+    create_time     TIMESTAMP     NOT NULL DEFAULT NOW(),
+    update_time     TIMESTAMP     NOT NULL DEFAULT NOW(),
+    CONSTRAINT pk_dw_data_analysis PRIMARY KEY (id)
+);
+CREATE INDEX IF NOT EXISTS idx_dw_data_analysis_rid ON dw_data_analysis(record_id);
+
+-- 大类6：质控数据分析报告（顶层折叠栏）
+INSERT INTO dw_module_config
+    (id, module_key, module_name, score_max, score_rule, is_enabled, sort_order, upload_hint, is_leaf, is_bonus)
+VALUES
+(9000000000000040, 'cat_analysis',
+ '质控数据分析报告', 0,
+ NULL,
+ TRUE, 45,
+ NULL,
+ FALSE, FALSE),
+
+(9000000000000041, 'data_analysis_report',
+ '质控数据分析报告', 0,
+ '按季度上传质控数据分析报告，管理员评阅',
+ TRUE, 46,
+ '请上传质控数据分析报告文件（PDF/DOCX/XLSX），每份报告单独录入',
+ TRUE, FALSE)
+
+ON CONFLICT (module_key) DO UPDATE SET
+    module_name       = EXCLUDED.module_name,
+    score_max         = EXCLUDED.score_max,
+    score_rule        = EXCLUDED.score_rule,
+    parent_module_key = EXCLUDED.parent_module_key,
+    is_leaf           = EXCLUDED.is_leaf,
+    is_bonus          = EXCLUDED.is_bonus,
+    sort_order        = EXCLUDED.sort_order,
+    upload_hint       = EXCLUDED.upload_hint,
+    update_time       = NOW();
+
+-- data_analysis_report 挂在 cat_analysis 下
+UPDATE dw_module_config SET
+    parent_module_key = 'cat_analysis',
+    update_time       = NOW()
+WHERE module_key = 'data_analysis_report';
+
+-- score_desc（机构端可见）
+UPDATE dw_module_config SET score_desc =
+'请按季度上传质控数据分析报告，每份报告单独录入，管理员将对报告内容进行评阅。'
+WHERE module_key IN ('cat_analysis', 'data_analysis_report');
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 数据修复：自评分（module_self_score）超出满分的，截断为满分

@@ -36,6 +36,8 @@ public class DwRecordController {
     private final DwRecordService    service;
     private final DwConfigService    configService;
     private final DwModuleConfigCache moduleConfigCache;
+    private final com.kxhospital.wreport.mapper.WrRecordMapper wrRecordMapper;
+    private final com.kxhospital.wreport.mapper.WrTaskMapper   wrTaskMapper;
 
     // ── 记录 ─────────────────────────────────────────────────────
 
@@ -152,6 +154,24 @@ public class DwRecordController {
         return R.ok();
     }
 
+    // ── 质控数据分析报告 ──────────────────────────────────────────
+
+    @Operation(summary = "新增或更新质控数据分析报告条目",
+               description = "id 为空时新增，非空时更新。季度任务和年度任务均可使用。" +
+                             "附件通过 /dw/record/attachment/upload 上传，moduleType=data_analysis_report，subRecordId=本条 id，slot=file")
+    @PostMapping("/data-analysis/save")
+    public R<com.kxhospital.wreport.entity.DwDataAnalysis> saveDataAnalysis(
+            @RequestBody com.kxhospital.wreport.pojo.request.DwDataAnalysisRequest req) {
+        return R.ok(service.saveDataAnalysis(req, user()));
+    }
+
+    @Operation(summary = "删除质控数据分析报告条目（含附件）")
+    @PostMapping("/data-analysis/delete/{id}")
+    public R<Void> deleteDataAnalysis(@PathVariable Long id) {
+        service.deleteDataAnalysis(id, user());
+        return R.ok();
+    }
+
     // ── 三级质控网络完善 ──────────────────────────────────────────
 
     @Operation(summary = "保存三级质控网络完善数据（每条记录只有一份，重复调用则覆盖）",
@@ -196,6 +216,13 @@ public class DwRecordController {
     @PostMapping("/module/score/save")
     public R<Void> saveModuleScore(@RequestBody ModuleScoreRequest req) {
         LoginUser u = user();
+        // 季度任务不参与打分，拦截误操作
+        com.kxhospital.wreport.entity.WrRecord _rec = wrRecordMapper.selectById(req.getRecordId());
+        if (_rec != null) {
+            com.kxhospital.wreport.entity.WrTask _task = wrTaskMapper.selectById(_rec.getTaskId());
+            if (_task != null && _task.getStatQuarter() != null)
+                throw new BusinessException(400, "季度任务不支持自评分");
+        }
         if (req.getScore() != null) {
             if (req.getScore().compareTo(BigDecimal.ZERO) < 0)
                 throw new BusinessException(400, "自评分不能为负数");

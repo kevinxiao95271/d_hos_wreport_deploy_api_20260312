@@ -95,6 +95,10 @@ public class DwRecordDetailVO {
     // ── 2.1 三级质控网络完善（单条树选择） ────────────
     private DwNetworkBuildVO networkBuild;
 
+    // ── 质控数据分析报告（多条记录型，季度可填） ────────
+    /** 按报告日期倒序；季度任务条目含 startYearQuarter/quarterIndex */
+    private List<DwDataAnalysisVO> dataAnalysisReports;
+
     /**
      * 仅年度任务（statQuarter=null）时有值。
      * 嵌入该年度 Q4→Q1 各季度只读快照，前端无需额外调用 year-summary 接口，
@@ -221,6 +225,20 @@ public class DwRecordDetailVO {
         private String compEndHalf;
         private List<DwAttachmentVO> evidences;
         private Map<String, String> extraValues;
+    }
+
+    /** 质控数据分析报告（多条，季度可填） */
+    @Data
+    public static class DwDataAnalysisVO {
+        @JsonSerialize(using = ToStringSerializer.class)
+        private Long id;
+        private String reportName;
+        private String reportDate;
+        /** 开始日期所属自然季度，如 2025-Q2；仅季度任务填报的条目有值 */
+        private String startYearQuarter;
+        /** 1–4；仅季度任务填报的条目有值 */
+        private Integer quarterIndex;
+        private List<DwAttachmentVO> files;
     }
 
     /** 2.1 三级质控网络完善（单条，复用指导模块的树回显结构） */

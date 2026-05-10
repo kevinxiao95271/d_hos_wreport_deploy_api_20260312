@@ -39,10 +39,11 @@ public class DwRecordServiceImpl implements DwRecordService {
     private final WrTaskMapper            taskMapper;
     private final WrRecordMapper          recordMapper;
     private final WrTaskOrgScopeMapper    taskOrgScopeMapper;
-    private final DwMeetingMapper    meetingMapper;
-    private final DwTrainingMapper   trainingMapper;
-    private final DwGuidanceMapper   guidanceMapper;
-    private final DwSurveyMapper     surveyMapper;
+    private final DwMeetingMapper       meetingMapper;
+    private final DwTrainingMapper      trainingMapper;
+    private final DwGuidanceMapper      guidanceMapper;
+    private final DwSurveyMapper        surveyMapper;
+    private final DwDataAnalysisMapper  dataAnalysisMapper;
     private final DwFundingMapper       fundingMapper;
     private final DwBonusMapper         bonusMapper;
     private final DwNetworkBuildMapper  networkBuildMapper;
@@ -270,6 +271,44 @@ public class DwRecordServiceImpl implements DwRecordService {
         attachmentMapper.delete(new LambdaQueryWrapper<DwAttachment>()
                 .eq(DwAttachment::getSubRecordId, guidanceId)
                 .eq(DwAttachment::getModuleType, "guidance"));
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 质控数据分析报告
+    // ─────────────────────────────────────────────────────────────
+
+    @Override
+    @Transactional
+    public DwDataAnalysis saveDataAnalysis(com.kxhospital.wreport.pojo.request.DwDataAnalysisRequest req, LoginUser user) {
+        requireEditableRecord(req.getRecordId(), user);
+        assertNotPlaceholderOnly("报告名称", req.getReportName());
+        if (req.getReportDate() == null)
+            throw new BusinessException(400, "报告日期不能为空");
+        DwDataAnalysis entity;
+        if (req.getId() != null) {
+            entity = dataAnalysisMapper.selectById(req.getId());
+            if (entity == null) throw new BusinessException(404, "数据分析报告记录不存在");
+        } else {
+            entity = new DwDataAnalysis();
+        }
+        entity.setRecordId(req.getRecordId());
+        entity.setReportName(req.getReportName());
+        entity.setReportDate(req.getReportDate());
+        if (req.getId() == null) dataAnalysisMapper.insert(entity);
+        else dataAnalysisMapper.updateById(entity);
+        return entity;
+    }
+
+    @Override
+    @Transactional
+    public void deleteDataAnalysis(Long dataAnalysisId, LoginUser user) {
+        DwDataAnalysis entity = dataAnalysisMapper.selectById(dataAnalysisId);
+        if (entity == null) return;
+        requireEditableRecord(entity.getRecordId(), user);
+        dataAnalysisMapper.deleteById(dataAnalysisId);
+        attachmentMapper.delete(new LambdaQueryWrapper<DwAttachment>()
+                .eq(DwAttachment::getSubRecordId, dataAnalysisId)
+                .eq(DwAttachment::getModuleType, "data_analysis_report"));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -506,10 +545,12 @@ public class DwRecordServiceImpl implements DwRecordService {
 
         // 所有扩展字段值，按 "moduleKey|subRecordId" 分组
         Map<String, Map<String, String>> extraMap = configService.loadAllValues(rid);
-        vo.setModuleSelfScores(buildModuleSelfScores(extraMap));
 
         // 季度任务才打 Q 标签；年度任务自己填的条目 startYearQuarter/quarterIndex 保持 null
         boolean isQuarterlyTask = task != null && task.getStatQuarter() != null;
+
+        // 季度任务不参与打分：自评分数据对所有角色（包括管理员）均不返回
+        vo.setModuleSelfScores(isQuarterlyTask ? null : buildModuleSelfScores(extraMap));
 
         // 质控会议
         vo.setMeetings(meetingMapper.listByRecord(rid).stream().map(m -> {
@@ -567,6 +608,17 @@ public class DwRecordServiceImpl implements DwRecordService {
             return sv;
         }).collect(Collectors.toList()));
 
+        // 质控数据分析报告（多条，季度可填）
+        vo.setDataAnalysisReports(dataAnalysisMapper.listByRecord(rid).stream().map(da -> {
+            DwRecordDetailVO.DwDataAnalysisVO dav = new DwRecordDetailVO.DwDataAnalysisVO();
+            dav.setId(da.getId());
+            dav.setReportName(da.getReportName());
+            dav.setReportDate(formatDate(da.getReportDate()));
+            if (isQuarterlyTask) fillStartQuarter(dav, da.getReportDate());
+            dav.setFiles(toVOList(attMap.get("data_analysis_report|" + da.getId() + "|file")));
+            return dav;
+        }).collect(Collectors.toList()));
+
         // 纯上传模块（含 record 级扩展字段）
         vo.setAnnualWorkFiles(toVOList(attMap.get("annual_work|null|evidence")));
         vo.setAnnualWorkExtra(extraMap.getOrDefault("annual_work|null", Collections.emptyMap()));
@@ -614,6 +666,7 @@ public class DwRecordServiceImpl implements DwRecordService {
         if (nb != null) {
             DwRecordDetailVO.DwNetworkBuildVO nbVO = new DwRecordDetailVO.DwNetworkBuildVO();
             BeanUtils.copyProperties(nb, nbVO);
+            if (isQuarterlyTask) nbVO.setSelfScore(null); // 季度任务不展示自评分
             nbVO.setCityCenterNames(resolveRegionNames(nb.getCityCenterIds(), regionMap));
             nbVO.setCountyCenterNames(resolveRegionNames(nb.getCountyCenterIds(), regionMap));
             nbVO.setCountyCenterGroups(groupCountyCenters(nb.getCountyCenterIds(), regionMap));
@@ -702,6 +755,12 @@ public class DwRecordServiceImpl implements DwRecordService {
     }
 
     private void fillStartQuarter(DwSurveyVO vo, LocalDate start) {
+        QuarterHint h = QuarterHint.of(start);
+        vo.setStartYearQuarter(h.startYearQuarter);
+        vo.setQuarterIndex(h.quarterIndex);
+    }
+
+    private void fillStartQuarter(DwRecordDetailVO.DwDataAnalysisVO vo, LocalDate start) {
         QuarterHint h = QuarterHint.of(start);
         vo.setStartYearQuarter(h.startYearQuarter);
         vo.setQuarterIndex(h.quarterIndex);
