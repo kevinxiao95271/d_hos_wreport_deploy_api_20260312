@@ -105,7 +105,7 @@ public class DwConfigServiceImpl implements DwConfigService {
 
         for (Map.Entry<String, String> entry : values.entrySet()) {
             String fk = entry.getKey();
-            if (!validKeys.contains(fk))
+            if (!validKeys.contains(fk) && !isAllowedDynamicField(moduleKey, fk))
                 throw new BusinessException(400, "未知字段：" + fk + "，请刷新后重试");
 
             // select-then-insert/update 避免 ON CONFLICT 对 NULL 的限制
@@ -143,5 +143,13 @@ public class DwConfigServiceImpl implements DwConfigService {
         Set<String> allowed = new HashSet<>(Arrays.asList("text", "number", "enum", "checkbox"));
         if (!allowed.contains(type))
             throw new BusinessException(400, "不支持的字段类型：" + type + "，允许值：text/number/enum/checkbox");
+    }
+
+    /** 国家/省报告：近3年勾选字段 checked_2026 等，按统计年度动态生成 */
+    private boolean isAllowedDynamicField(String moduleKey, String fieldKey) {
+        if (fieldKey == null) return false;
+        if ("module_self_score".equals(fieldKey)) return true;
+        if (!"national_report".equals(moduleKey) && !"prov_report".equals(moduleKey)) return false;
+        return fieldKey.matches("checked_\\d{4}");
     }
 }

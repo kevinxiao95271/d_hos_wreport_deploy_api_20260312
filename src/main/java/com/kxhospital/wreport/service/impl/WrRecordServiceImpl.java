@@ -17,8 +17,10 @@ import com.kxhospital.wreport.common.BusinessException;
 import com.kxhospital.wreport.service.WrAttachmentService;
 import com.kxhospital.wreport.service.WrRecordService;
 import com.kxhospital.wreport.service.WrTemplateService;
+import com.kxhospital.wreport.service.WrTodoMessageService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,7 @@ import com.kxhospital.wreport.mapper.WrDictMapper;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class WrRecordServiceImpl implements WrRecordService {
 
     private final WrRecordMapper        recordMapper;
@@ -47,6 +50,7 @@ public class WrRecordServiceImpl implements WrRecordService {
     private final WrTemplateMapper      templateMapper;
     private final WrDictMapper          dictMapper;
     private final WrTaskOrgScopeMapper  taskOrgScopeMapper;
+    private final WrTodoMessageService  todoMessageService;
 
     @Override
     @Transactional
@@ -155,6 +159,13 @@ public class WrRecordServiceImpl implements WrRecordService {
         record.setSubmitUser(user.getUserId());
         record.setSubmitTime(now);
         recordMapper.updateById(record);
+
+        try {
+            todoMessageService.markTaskTodoHandled(record.getTaskId(), user.getUserId());
+        } catch (Exception e) {
+            log.warn("[wr-todo] mark handled on submit failed, taskId={}, userId={}",
+                    record.getTaskId(), user.getUserId(), e);
+        }
     }
 
     /**

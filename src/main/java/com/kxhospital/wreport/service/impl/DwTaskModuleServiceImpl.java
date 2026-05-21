@@ -2,6 +2,7 @@ package com.kxhospital.wreport.service.impl;
 
 import com.kxhospital.wreport.cache.DwModuleConfigCache;
 import com.kxhospital.wreport.common.BusinessException;
+import com.kxhospital.wreport.common.DwTaskModuleKeys;
 import com.kxhospital.wreport.entity.DwModuleConfig;
 import com.kxhospital.wreport.entity.DwTaskModuleScope;
 import com.kxhospital.wreport.entity.WrTask;
@@ -29,9 +30,28 @@ public class DwTaskModuleServiceImpl implements DwTaskModuleService {
         if (taskId == null) return defaultEnabledKeys();
         WrTask t = taskMapper.selectById(taskId);
         if (t == null || !"daily_work".equals(t.getTaskType())) return defaultEnabledKeys();
+
+        LinkedHashSet<String> resolved = new LinkedHashSet<>();
         List<String> keys = scopeMapper.selectModuleKeysByTaskId(taskId);
-        if (keys == null || keys.isEmpty()) return defaultEnabledKeys();
-        return new LinkedHashSet<>(keys);
+        if (keys != null && !keys.isEmpty()) {
+            resolved.addAll(keys);
+        } else {
+            resolved.addAll(defaultEnabledKeys());
+        }
+
+        // 兼容旧任务：scope 创建时模块列表不完整，自动补齐标准模块
+        if (t.getStatQuarter() == null) {
+            resolved.addAll(DwTaskModuleKeys.ANNUAL_MODULES);
+            DwTaskModuleKeys.ANNUAL_EXCLUDED_MODULES.forEach(resolved::remove);
+        } else {
+            resolved.addAll(DwTaskModuleKeys.QUARTER_MODULES);
+        }
+
+        Set<String> validEnabled = moduleConfigCache.getEnabledModules().stream()
+                .map(DwModuleConfig::getModuleKey)
+                .collect(Collectors.toSet());
+        resolved.retainAll(validEnabled);
+        return resolved;
     }
 
     private Set<String> defaultEnabledKeys() {

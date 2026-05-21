@@ -57,4 +57,22 @@ public interface SysUserMapper {
             "WHERE u.del_flag = 'N' AND u.status_flag = 1 " +
             "ORDER BY o.org_name")
     List<Map<String, Object>> listOrgUsers();
+
+    /**
+     * 按机构 ID 列表查 qcUser 用户（orgIds 为空/null 时返回全部可分配机构用户）。
+     */
+    @org.apache.ibatis.annotations.Select("<script>" +
+            "SELECT DISTINCT u.user_id AS \"userId\", p.org_id AS \"orgId\" " +
+            "FROM sys_user u " +
+            "JOIN sys_user_role ur ON ur.user_id = u.user_id " +
+            "JOIN sys_role r ON r.role_id = ur.role_id AND r.role_code = 'qcUser' " +
+            "JOIN hr_person p ON p.person_id = u.person_id AND p.del_flag = 'N' " +
+            "WHERE u.del_flag = 'N' AND u.status_flag = 1 " +
+            "<if test='orgIds != null and orgIds.size() &gt; 0'>" +
+            "AND p.org_id IN " +
+            "<foreach collection='orgIds' item='oid' open='(' separator=',' close=')'>#{oid}</foreach> " +
+            "</if>" +
+            "ORDER BY p.org_id, u.user_id" +
+            "</script>")
+    List<Map<String, Object>> listQcUserIdsByOrgIds(@Param("orgIds") List<Long> orgIds);
 }

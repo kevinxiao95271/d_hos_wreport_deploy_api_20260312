@@ -68,10 +68,10 @@ public class DwRecordDetailVO {
     private List<DwAttachmentVO> indicatorDbFiles;
     /** 4.1 质控指标监测 */
     private List<DwAttachmentVO> indicatorMonitorFiles;
-    /** 4.2 国家质量安全报告分册 */
-    private List<DwAttachmentVO> nationalReportFiles;
-    /** 4.3 浙江省质量安全报告 */
-    private List<DwAttachmentVO> provReportFiles;
+    /** 4.2 国家质量安全报告分册（按年度 y2026 等 slot 分组） */
+    private Map<String, List<DwAttachmentVO>> nationalReportFiles;
+    /** 4.3 浙江省质量安全报告（按年度 slot 分组） */
+    private Map<String, List<DwAttachmentVO>> provReportFiles;
     /** 加分项3：行政指令性任务（双槽：national_task / prov_task） */
     private Map<String, List<DwAttachmentVO>> bonusAdminFiles;
 

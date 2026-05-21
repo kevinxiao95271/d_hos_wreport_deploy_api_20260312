@@ -13,6 +13,7 @@ import com.kxhospital.wreport.mapper.WrTaskMapper;
 import com.kxhospital.wreport.mapper.WrTaskOrgScopeMapper;
 import com.kxhospital.wreport.pojo.response.TaskScopeOrgVO;
 import com.kxhospital.wreport.service.WrTaskService;
+import com.kxhospital.wreport.service.WrTodoMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class WrTaskServiceImpl implements WrTaskService {
     private final WrTaskMapper         taskMapper;
     private final WrTaskOrgScopeMapper scopeMapper;
     private final WrRecordMapper       recordMapper;
+    private final WrTodoMessageService todoMessageService;
 
     @Override
     public IPage<WrTask> page(Page<WrTask> page, String taskName, Integer status) {
@@ -76,9 +78,24 @@ public class WrTaskServiceImpl implements WrTaskService {
 
     @Override
     public void updateStatus(Long id, Integer status) {
+        WrTask task = taskMapper.selectById(id);
+        if (task == null) {
+            return;
+        }
+        Integer oldStatus = task.getStatus();
         LambdaUpdateWrapper<WrTask> w = new LambdaUpdateWrapper<>();
         w.eq(WrTask::getId, id).set(WrTask::getStatus, status);
         taskMapper.update(null, w);
+
+        if (status != null && status == 1 && !Integer.valueOf(1).equals(oldStatus)) {
+            task.setStatus(1);
+            try {
+                List<Long> orgIds = scopeMapper.selectOrgIdsByTaskId(id);
+                todoMessageService.sendTaskPublishTodos(task, orgIds, com.kxhospital.wreport.common.UserContext.get());
+            } catch (Exception e) {
+                log.error("[wr-todo] send on publish failed, taskId={}", id, e);
+            }
+        }
     }
 
     @Override
@@ -139,6 +156,20 @@ public class WrTaskServiceImpl implements WrTaskService {
         }
         if (!scopes.isEmpty()) {
             scopeMapper.insertBatch(scopes);
+        }
+
+        WrTask task = taskMapper.selectById(taskId);
+        if (task != null && Integer.valueOf(1).equals(task.getStatus())) {
+            Set<Long> oldSet = new HashSet<>(currentOrgIds);
+            Set<Long> newSet = new HashSet<>(orgIds);
+            List<Long> addedOrgIds = newSet.stream()
+                    .filter(orgId -> !oldSet.contains(orgId))
+                    .collect(Collectors.toList());
+            try {
+                todoMessageService.sendTaskTodosForAddedOrgs(task, addedOrgIds, user);
+            } catch (Exception e) {
+                log.error("[wr-todo] send on scope change failed, taskId={}", taskId, e);
+            }
         }
     }
 

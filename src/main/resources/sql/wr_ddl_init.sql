@@ -1063,17 +1063,17 @@ VALUES
 -- 4.2 国家质量安全报告分册
 (9000000000000033, 'national_report',
  '国家质量安全报告分册', 10,
- '参与撰写《医疗服务与质量安全报告》国家分册（10分）',
+ '近3年撰写本专业质控数据分析报告、参与撰写《医疗服务与质量安全报告》国家分册情况（10分）',
  TRUE, 42,
- '请上传参与撰写《医疗服务与质量安全报告》国家分册的证明文件或相关内容（PDF/DOCX）',
+ '请勾选近3年（含统计年度及前两年）参与撰写国家分册的年度，并上传对应年度证明材料。',
  'cat_report', TRUE, FALSE),
 
 -- 4.3 浙江省质量安全报告
 (9000000000000034, 'prov_report',
  '浙江省质量安全报告', 10,
- '参与撰写《浙江省医疗服务与质量安全报告》（10分）',
+ '近3年参与《浙江省医疗服务与质量安全报告》撰写情况（10分）',
  TRUE, 43,
- '请上传参与撰写《浙江省医疗服务与质量安全报告》的证明文件或相关内容（PDF/DOCX）',
+ '请勾选近3年（含统计年度及前两年）参与撰写省报告的年度，并上传对应年度证明材料。',
  'cat_report', TRUE, FALSE),
 
 -- 加分项3：积极完成行政指令性任务
@@ -1161,11 +1161,11 @@ UPDATE dw_module_config SET score_desc =
 WHERE module_key = 'indicator_monitor';
 
 UPDATE dw_module_config SET score_desc =
-'请上传参与撰写《医疗服务与质量安全报告》国家分册的证明文件或相关内容。'
+'请勾选近3年（含统计年度及前两年）参与撰写国家分册的年度，并上传对应年度证明材料。'
 WHERE module_key = 'national_report';
 
 UPDATE dw_module_config SET score_desc =
-'请上传参与撰写《浙江省医疗服务与质量安全报告》的证明文件或相关内容。'
+'请勾选近3年（含统计年度及前两年）参与撰写省报告的年度，并上传对应年度证明材料。'
 WHERE module_key = 'prov_report';
 
 UPDATE dw_module_config SET score_desc =
@@ -1224,14 +1224,14 @@ VALUES
 (9000000000000040, 'cat_analysis',
  '质控数据分析报告', 0,
  NULL,
- TRUE, 45,
+ FALSE, 45,
  NULL,
  FALSE, FALSE),
 
 (9000000000000041, 'data_analysis_report',
  '质控数据分析报告', 0,
  '按季度上传质控数据分析报告，管理员评阅',
- TRUE, 46,
+ FALSE, 46,
  '请上传质控数据分析报告文件（PDF/DOCX/XLSX），每份报告单独录入',
  TRUE, FALSE)
 
@@ -1246,11 +1246,17 @@ ON CONFLICT (module_key) DO UPDATE SET
     upload_hint       = EXCLUDED.upload_hint,
     update_time       = NOW();
 
--- data_analysis_report 挂在 cat_analysis 下
+-- 季度填报项：独立展示，不挂 cat_analysis 大类
 UPDATE dw_module_config SET
-    parent_module_key = 'cat_analysis',
+    parent_module_key = NULL,
     update_time       = NOW()
 WHERE module_key = 'data_analysis_report';
+
+-- 空大类容器禁用（季度任务不需要）
+UPDATE dw_module_config SET
+    is_enabled  = FALSE,
+    update_time = NOW()
+WHERE module_key = 'cat_analysis';
 
 -- score_desc（机构端可见）
 UPDATE dw_module_config SET score_desc =
@@ -1258,35 +1264,31 @@ UPDATE dw_module_config SET score_desc =
 WHERE module_key IN ('cat_analysis', 'data_analysis_report');
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- 季度任务默认模块范围：meeting / training / guidance / survey / data_analysis_report
+-- 季度任务默认模块范围：meeting / training / guidance / survey
 -- 4个固定季度任务（920250000000000001~4）的模块scope，幂等安全
 -- ─────────────────────────────────────────────────────────────────────────────
 INSERT INTO dw_task_module_scope (id, task_id, module_key, sort_order, create_time)
 VALUES
 -- Q1
-(9200000000010001, 920250000000000001, 'meeting',               0, NOW()),
-(9200000000010002, 920250000000000001, 'training',              1, NOW()),
-(9200000000010003, 920250000000000001, 'guidance',              2, NOW()),
-(9200000000010004, 920250000000000001, 'survey',                3, NOW()),
-(9200000000010005, 920250000000000001, 'data_analysis_report',  4, NOW()),
+(9200000000010001, 920250000000000001, 'meeting',   0, NOW()),
+(9200000000010002, 920250000000000001, 'training',  1, NOW()),
+(9200000000010003, 920250000000000001, 'guidance',  2, NOW()),
+(9200000000010004, 920250000000000001, 'survey',    3, NOW()),
 -- Q2
-(9200000000020001, 920250000000000002, 'meeting',               0, NOW()),
-(9200000000020002, 920250000000000002, 'training',              1, NOW()),
-(9200000000020003, 920250000000000002, 'guidance',              2, NOW()),
-(9200000000020004, 920250000000000002, 'survey',                3, NOW()),
-(9200000000020005, 920250000000000002, 'data_analysis_report',  4, NOW()),
+(9200000000020001, 920250000000000002, 'meeting',   0, NOW()),
+(9200000000020002, 920250000000000002, 'training',  1, NOW()),
+(9200000000020003, 920250000000000002, 'guidance',  2, NOW()),
+(9200000000020004, 920250000000000002, 'survey',    3, NOW()),
 -- Q3
-(9200000000030001, 920250000000000003, 'meeting',               0, NOW()),
-(9200000000030002, 920250000000000003, 'training',              1, NOW()),
-(9200000000030003, 920250000000000003, 'guidance',              2, NOW()),
-(9200000000030004, 920250000000000003, 'survey',                3, NOW()),
-(9200000000030005, 920250000000000003, 'data_analysis_report',  4, NOW()),
+(9200000000030001, 920250000000000003, 'meeting',   0, NOW()),
+(9200000000030002, 920250000000000003, 'training',  1, NOW()),
+(9200000000030003, 920250000000000003, 'guidance',  2, NOW()),
+(9200000000030004, 920250000000000003, 'survey',    3, NOW()),
 -- Q4
-(9200000000040001, 920250000000000004, 'meeting',               0, NOW()),
-(9200000000040002, 920250000000000004, 'training',              1, NOW()),
-(9200000000040003, 920250000000000004, 'guidance',              2, NOW()),
-(9200000000040004, 920250000000000004, 'survey',                3, NOW()),
-(9200000000040005, 920250000000000004, 'data_analysis_report',  4, NOW())
+(9200000000040001, 920250000000000004, 'meeting',   0, NOW()),
+(9200000000040002, 920250000000000004, 'training',  1, NOW()),
+(9200000000040003, 920250000000000004, 'guidance',  2, NOW()),
+(9200000000040004, 920250000000000004, 'survey',    3, NOW())
 ON CONFLICT (id) DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────────────────────

@@ -18,6 +18,7 @@ import com.kxhospital.wreport.pojo.response.RegionNodeVO;
 import com.kxhospital.wreport.pojo.response.TaskScopeOrgVO;
 import com.kxhospital.wreport.service.DwRecordService;
 import com.kxhospital.wreport.service.DwTaskModuleService;
+import com.kxhospital.wreport.service.WrTodoMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -53,6 +54,7 @@ public class DwRecordServiceImpl implements DwRecordService {
     private final com.kxhospital.wreport.service.DwConfigService configService;
     private final DwTaskModuleService dwTaskModuleService;
     private final DwRegionCache      regionCache;
+    private final WrTodoMessageService todoMessageService;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -501,6 +503,13 @@ public class DwRecordServiceImpl implements DwRecordService {
         record.setSubmitUser(user.getUserId());
         record.setSubmitTime(java.time.LocalDateTime.now());
         recordMapper.updateById(record);
+
+        try {
+            todoMessageService.markTaskTodoHandled(record.getTaskId(), user.getUserId());
+        } catch (Exception e) {
+            log.warn("[wr-todo] mark handled on dw submit failed, taskId={}, userId={}",
+                    record.getTaskId(), user.getUserId(), e);
+        }
     }
 
     @Override
@@ -648,10 +657,10 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setIndicatorMonitorFiles(toVOList(attMap.get("indicator_monitor|null|evidence")));
         vo.setIndicatorMonitorExtra(extraMap.getOrDefault("indicator_monitor|null", Collections.emptyMap()));
 
-        vo.setNationalReportFiles(toVOList(attMap.get("national_report|null|evidence")));
+        vo.setNationalReportFiles(buildYearReportFiles(attMap, "national_report", task != null ? task.getStatYear() : null));
         vo.setNationalReportExtra(extraMap.getOrDefault("national_report|null", Collections.emptyMap()));
 
-        vo.setProvReportFiles(toVOList(attMap.get("prov_report|null|evidence")));
+        vo.setProvReportFiles(buildYearReportFiles(attMap, "prov_report", task != null ? task.getStatYear() : null));
         vo.setProvReportExtra(extraMap.getOrDefault("prov_report|null", Collections.emptyMap()));
 
         // 新增：加分项3 行政指令性任务（双槽）
@@ -729,6 +738,33 @@ public class DwRecordServiceImpl implements DwRecordService {
             BeanUtils.copyProperties(a, v);
             return v;
         }).collect(Collectors.toList());
+    }
+
+    /** 国家/省报告模块：按近3年 slot（y2026）分组，兼容旧 evidence 槽位归入 statYear */
+    private Map<String, List<DwAttachmentVO>> buildYearReportFiles(
+            Map<String, List<DwAttachment>> attMap, String moduleKey, String statYear) {
+        Map<String, List<DwAttachmentVO>> out = new LinkedHashMap<>();
+        int baseYear = parseStatYear(statYear);
+        for (int y = baseYear; y >= baseYear - 2; y--) {
+            String slot = "y" + y;
+            List<DwAttachment> files = attMap.get(moduleKey + "|null|" + slot);
+            if ((files == null || files.isEmpty()) && y == baseYear) {
+                files = attMap.get(moduleKey + "|null|evidence");
+            }
+            out.put(slot, toVOList(files != null ? files : Collections.emptyList()));
+        }
+        return out;
+    }
+
+    private int parseStatYear(String statYear) {
+        if (statYear == null || statYear.trim().isEmpty()) {
+            return LocalDate.now().getYear();
+        }
+        try {
+            return Integer.parseInt(statYear.trim());
+        } catch (NumberFormatException e) {
+            return LocalDate.now().getYear();
+        }
     }
 
     private int nvl(Integer v) { return v == null ? 0 : v; }
