@@ -16,4 +16,6 @@ public class RecordAggregateResponse {
     private Long approved;
     @Schema(description = "已驳回数量")
     private Long rejected;
+    @Schema(description = "待处理撤回申请数量")
+    private Long pendingRejectApply;
 }

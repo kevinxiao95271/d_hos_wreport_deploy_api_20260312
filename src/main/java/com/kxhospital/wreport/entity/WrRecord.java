@@ -27,6 +27,16 @@ public class WrRecord implements Serializable {
      * 由 audit() 在驳回时自动设为 auditTime + 7天，也可由管理员手动指定
      */
     private LocalDateTime resubmitDeadline;
+    /** 驳回申请状态：0=无 1=待处理 2=已同意驳回 3=已拒绝申请 */
+    private Integer rejectApplyStatus;
+    /** 机构申请驳回原因 */
+    private String rejectApplyReason;
+    /** 机构申请驳回时间 */
+    private LocalDateTime rejectApplyTime;
+    /** 管理员处理意见 */
+    private String rejectApplyHandleRemark;
+    /** 管理员处理时间 */
+    private LocalDateTime rejectApplyHandleTime;
     @TableField(fill = FieldFill.INSERT) private Long createUser;
     @TableField(fill = FieldFill.INSERT) private LocalDateTime createTime;
     @TableField(fill = FieldFill.INSERT_UPDATE) private Long updateUser;

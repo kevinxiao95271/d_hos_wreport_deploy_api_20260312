@@ -7,6 +7,8 @@ import com.kxhospital.wreport.common.LoginUser;
 import com.kxhospital.wreport.entity.*;
 import com.kxhospital.wreport.mapper.*;
 import com.kxhospital.wreport.pojo.request.RecordAuditRequest;
+import com.kxhospital.wreport.pojo.request.RecordRejectApplyHandleRequest;
+import com.kxhospital.wreport.pojo.request.RecordRejectApplyRequest;
 import com.kxhospital.wreport.pojo.request.RecordSaveRequest;
 import com.kxhospital.wreport.pojo.request.RecordSubmitRequest;
 import com.kxhospital.wreport.pojo.response.AttachmentVO;
@@ -155,9 +157,17 @@ public class WrRecordServiceImpl implements WrRecordService {
             }
         }
 
+        Integer previousStatus = record.getStatus();
         record.setStatus(1);
         record.setSubmitUser(user.getUserId());
         record.setSubmitTime(now);
+        if (previousStatus != null && previousStatus == 3) {
+            record.setRejectApplyStatus(REJECT_APPLY_NONE);
+            record.setRejectApplyReason(null);
+            record.setRejectApplyTime(null);
+            record.setRejectApplyHandleRemark(null);
+            record.setRejectApplyHandleTime(null);
+        }
         recordMapper.updateById(record);
 
         try {
@@ -355,6 +365,71 @@ public class WrRecordServiceImpl implements WrRecordService {
         recordMapper.updateById(record);
     }
 
+    private static final int REJECT_APPLY_NONE = 0;
+    private static final int REJECT_APPLY_PENDING = 1;
+    private static final int REJECT_APPLY_APPROVED = 2;
+    private static final int REJECT_APPLY_DENIED = 3;
+
+    @Override
+    @Transactional
+    public void applyReject(RecordRejectApplyRequest req, LoginUser user) {
+        WrRecord record = recordMapper.selectById(req.getRecordId());
+        if (record == null) throw new BusinessException(404, "记录不存在");
+        if (!Objects.equals(record.getOrgId(), user.getOrgId())) {
+            throw new BusinessException(403, "无权操作该上报记录");
+        }
+        if (record.getStatus() == null || (record.getStatus() != 1 && record.getStatus() != 2)) {
+            throw new BusinessException(4001, "仅待审核或已通过的上报记录可申请撤回");
+        }
+        Integer applyStatus = record.getRejectApplyStatus() == null ? REJECT_APPLY_NONE : record.getRejectApplyStatus();
+        if (applyStatus == REJECT_APPLY_PENDING) {
+            throw new BusinessException(4002, "已有待处理的撤回申请，请等待管理员处理");
+        }
+        String reason = req.getReason() == null ? "" : req.getReason().trim();
+        if (reason.isEmpty()) {
+            throw new BusinessException(4003, "申请原因不能为空");
+        }
+        record.setRejectApplyStatus(REJECT_APPLY_PENDING);
+        record.setRejectApplyReason(reason);
+        record.setRejectApplyTime(LocalDateTime.now());
+        record.setRejectApplyHandleRemark(null);
+        record.setRejectApplyHandleTime(null);
+        recordMapper.updateById(record);
+    }
+
+    @Override
+    @Transactional
+    public void handleRejectApply(RecordRejectApplyHandleRequest req, LoginUser user) {
+        WrRecord record = recordMapper.selectById(req.getRecordId());
+        if (record == null) throw new BusinessException(404, "记录不存在");
+        Integer applyStatus = record.getRejectApplyStatus() == null ? REJECT_APPLY_NONE : record.getRejectApplyStatus();
+        if (applyStatus != REJECT_APPLY_PENDING) {
+            throw new BusinessException(4004, "该记录没有待处理的撤回申请");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        String handleRemark = req.getHandleRemark() == null ? "" : req.getHandleRemark().trim();
+        if (Boolean.TRUE.equals(req.getApproved())) {
+            if (handleRemark.isEmpty()) {
+                throw new BusinessException(4005, "同意撤回时请填写处理意见");
+            }
+            record.setStatus(3);
+            record.setAuditResult(2);
+            record.setAuditRemark(handleRemark);
+            record.setAuditUser(user.getUserId());
+            record.setAuditTime(now);
+            LocalDateTime resubmitDeadline = req.getResubmitDeadline() != null
+                    ? req.getResubmitDeadline()
+                    : now.plusDays(DEFAULT_RESUBMIT_DAYS);
+            record.setResubmitDeadline(resubmitDeadline);
+            record.setRejectApplyStatus(REJECT_APPLY_APPROVED);
+        } else {
+            record.setRejectApplyStatus(REJECT_APPLY_DENIED);
+        }
+        record.setRejectApplyHandleRemark(handleRemark.isEmpty() ? null : handleRemark);
+        record.setRejectApplyHandleTime(now);
+        recordMapper.updateById(record);
+    }
+
     @Override
     public void exportExcel(Long taskId, HttpServletResponse response) {
         List<WrRecord> records = recordMapper.selectAdminPage(
@@ -396,12 +471,14 @@ public class WrRecordServiceImpl implements WrRecordService {
             response.setSubmitted(0L);
             response.setApproved(0L);
             response.setRejected(0L);
+            response.setPendingRejectApply(0L);
             return response;
         }
         response.setDraft(toLong(agg.get("draft")));
         response.setSubmitted(toLong(agg.get("submitted")));
         response.setApproved(toLong(agg.get("approved")));
         response.setRejected(toLong(agg.get("rejected")));
+        response.setPendingRejectApply(toLong(agg.get("pendingRejectApply")));
         return response;
     }
 

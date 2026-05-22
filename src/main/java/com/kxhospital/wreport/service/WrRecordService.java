@@ -7,6 +7,8 @@ import com.kxhospital.wreport.entity.WrRecord;
 import com.kxhospital.wreport.pojo.request.RecordSaveRequest;
 import com.kxhospital.wreport.pojo.request.RecordSubmitRequest;
 import com.kxhospital.wreport.pojo.request.RecordAuditRequest;
+import com.kxhospital.wreport.pojo.request.RecordRejectApplyHandleRequest;
+import com.kxhospital.wreport.pojo.request.RecordRejectApplyRequest;
 import com.kxhospital.wreport.pojo.response.CrossViewVO;
 import com.kxhospital.wreport.pojo.response.RecordAggregateResponse;
 import com.kxhospital.wreport.pojo.response.RecordDetailVO;
@@ -23,6 +25,8 @@ public interface WrRecordService {
     WrRecord myRecord(Long taskId, LoginUser user);
     RecordDetailVO detail(Long recordId);
     void audit(RecordAuditRequest req, LoginUser user);
+    void applyReject(RecordRejectApplyRequest req, LoginUser user);
+    void handleRejectApply(RecordRejectApplyHandleRequest req, LoginUser user);
     void exportExcel(Long taskId, HttpServletResponse response);
     RecordAggregateResponse aggregate(Long taskId);
 

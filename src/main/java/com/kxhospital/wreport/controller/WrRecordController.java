@@ -7,6 +7,8 @@ import com.kxhospital.wreport.common.R;
 import com.kxhospital.wreport.common.UserContext;
 import com.kxhospital.wreport.entity.WrRecord;
 import com.kxhospital.wreport.pojo.request.RecordAuditRequest;
+import com.kxhospital.wreport.pojo.request.RecordRejectApplyHandleRequest;
+import com.kxhospital.wreport.pojo.request.RecordRejectApplyRequest;
 import com.kxhospital.wreport.pojo.request.RecordSaveRequest;
 import com.kxhospital.wreport.pojo.request.RecordSubmitRequest;
 import com.kxhospital.wreport.pojo.response.CrossViewVO;
@@ -149,6 +151,22 @@ public class WrRecordController {
     public R<Void> audit(@Valid @RequestBody RecordAuditRequest req) {
         LoginUser u = requireAdmin();
         recordService.audit(req, u);
+        return R.ok();
+    }
+
+    @Operation(summary = "申请撤回（机构用户）", description = "待审核或已通过的上报记录可申请管理员同意后撤回并重新修改")
+    @PostMapping("/reject-apply")
+    public R<Void> rejectApply(@Valid @RequestBody RecordRejectApplyRequest req) {
+        LoginUser u = requireOrgUser();
+        recordService.applyReject(req, u);
+        return R.ok();
+    }
+
+    @Operation(summary = "处理撤回申请（管理员）", description = "approved=true 同意撤回；false 拒绝申请")
+    @PostMapping("/reject-apply/handle")
+    public R<Void> handleRejectApply(@Valid @RequestBody RecordRejectApplyHandleRequest req) {
+        LoginUser u = requireAdmin();
+        recordService.handleRejectApply(req, u);
         return R.ok();
     }
 
