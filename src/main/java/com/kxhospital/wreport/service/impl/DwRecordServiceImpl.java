@@ -26,6 +26,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -485,6 +490,47 @@ public class DwRecordServiceImpl implements DwRecordService {
         if (att.getFileUrl() != null)
             minioService.deleteByUrl(minioProps.getBucketEvidence(), att.getFileUrl());
         attachmentMapper.deleteById(attachmentId);
+    }
+
+    @Override
+    public void downloadAttachment(Long attachmentId, LoginUser user, HttpServletResponse response) {
+        DwAttachment att = attachmentMapper.selectById(attachmentId);
+        if (att == null) throw new BusinessException(404, "附件不存在");
+        WrRecord record = requireRecord(att.getRecordId());
+        if (!user.isAdmin() && !record.getOrgId().equals(user.getOrgId()))
+            throw new BusinessException(403, "无权下载");
+        if (att.getFileUrl() == null || att.getFileUrl().trim().isEmpty())
+            throw new BusinessException(404, "附件文件不存在");
+
+        String fileName = att.getFileName() != null && !att.getFileName().trim().isEmpty()
+                ? att.getFileName().trim() : "download";
+        fileName = fileName.replace("\"", "");
+        try {
+            String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8.name()).replace("+", "%20");
+            String mime = att.getFileMime() != null && !att.getFileMime().trim().isEmpty()
+                    ? att.getFileMime() : "application/octet-stream";
+            response.setContentType(mime);
+            response.setHeader("Content-Disposition",
+                    "attachment; filename=\"" + fileName + "\"; filename*=UTF-8''" + encoded);
+            response.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+            if (att.getFileSize() != null && att.getFileSize() > 0)
+                response.setContentLengthLong(att.getFileSize());
+
+            try (InputStream in = minioService.getObjectStream(minioProps.getBucketEvidence(), att.getFileUrl());
+                 OutputStream out = response.getOutputStream()) {
+                byte[] buf = new byte[8192];
+                int len;
+                while ((len = in.read(buf)) != -1) {
+                    out.write(buf, 0, len);
+                }
+                out.flush();
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("[DW] download attachment failed id={}: {}", attachmentId, e.getMessage(), e);
+            throw new BusinessException(500, "下载失败: " + e.getMessage());
+        }
     }
 
     // ─────────────────────────────────────────────────────────────

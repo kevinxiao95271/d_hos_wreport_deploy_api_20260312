@@ -20,7 +20,7 @@ import java.util.Map;
 public interface WrRecordService {
     Long saveOrUpdate(RecordSaveRequest req, LoginUser user);
     void submit(RecordSubmitRequest req, LoginUser user);
-    IPage<WrRecord> adminPage(Page<WrRecord> page, Long taskId, String orgName, Integer status);
+    IPage<WrRecord> adminPage(Page<WrRecord> page, Long taskId, String orgName, Integer status, Integer rejectApplyStatus);
     IPage<WrRecord> myPage(Page<WrRecord> page, LoginUser user, Long taskId, Integer status);
     WrRecord myRecord(Long taskId, LoginUser user);
     RecordDetailVO detail(Long recordId);

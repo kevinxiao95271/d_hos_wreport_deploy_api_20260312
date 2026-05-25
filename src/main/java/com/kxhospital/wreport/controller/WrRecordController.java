@@ -107,16 +107,17 @@ public class WrRecordController {
         return R.ok(recordService.myPage(new Page<>(pageNum, pageSize), u, taskId, status));
     }
 
-    @Operation(summary = "分页查询所有上报（管理员）", description = "支持 taskId/orgName/status 条件")
+    @Operation(summary = "分页查询所有上报（管理员）", description = "支持 taskId/orgName/status/rejectApplyStatus 条件")
     @ApiResponse(responseCode = "200", description = "success", content = @Content(mediaType = "application/json", examples = @ExampleObject(value = "{\"code\":200,\"message\":\"success\",\"data\":{\"records\":[{\"id\":2032129401981792257,\"orgName\":\"某机构\",\"status\":1}],\"total\":1}}")))
     @GetMapping("/admin/page")
     public R<IPage<WrRecord>> adminPage(@RequestParam(defaultValue = "1") int pageNum,
                                         @RequestParam(defaultValue = "20") int pageSize,
                                         @RequestParam(required = false) Long taskId,
                                         @RequestParam(required = false) String orgName,
-                                        @RequestParam(required = false) Integer status) {
+                                        @RequestParam(required = false) Integer status,
+                                        @RequestParam(required = false) Integer rejectApplyStatus) {
         requireAdmin();
-        return R.ok(recordService.adminPage(new Page<>(pageNum, pageSize), taskId, orgName, status));
+        return R.ok(recordService.adminPage(new Page<>(pageNum, pageSize), taskId, orgName, status, rejectApplyStatus));
     }
 
     @Operation(summary = "上报统计汇总（管理员）", description = "按 taskId 统计各状态数量")

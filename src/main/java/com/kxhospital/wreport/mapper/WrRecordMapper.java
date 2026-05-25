@@ -17,7 +17,8 @@ public interface WrRecordMapper extends BaseMapper<WrRecord> {
     IPage<WrRecord> selectAdminPage(Page<WrRecord> page,
                                     @Param("taskId") Long taskId,
                                     @Param("orgName") String orgName,
-                                    @Param("status") Integer status);
+                                    @Param("status") Integer status,
+                                    @Param("rejectApplyStatus") Integer rejectApplyStatus);
 
     IPage<WrRecord> selectMyPage(Page<WrRecord> page,
                                  @Param("orgId") Long orgId,

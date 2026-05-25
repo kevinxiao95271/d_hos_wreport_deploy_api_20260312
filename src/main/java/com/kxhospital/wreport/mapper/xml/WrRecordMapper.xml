@@ -15,6 +15,9 @@
         <if test="status != null">
             AND status = #{status}
         </if>
+        <if test="rejectApplyStatus != null">
+            AND reject_apply_status = #{rejectApplyStatus}
+        </if>
         ORDER BY create_time DESC
     </select>
 

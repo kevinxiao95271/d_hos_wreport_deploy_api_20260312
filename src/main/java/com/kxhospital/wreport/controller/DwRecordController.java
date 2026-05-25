@@ -272,6 +272,12 @@ public class DwRecordController {
         return R.ok();
     }
 
+    @Operation(summary = "下载附件（当页下载，文件名与上传时一致）")
+    @GetMapping("/attachment/download/{id}")
+    public void downloadAttachment(@PathVariable Long id, javax.servlet.http.HttpServletResponse response) {
+        service.downloadAttachment(id, user(), response);
+    }
+
     // ── 工具 ─────────────────────────────────────────────────────
 
     private LoginUser user() {

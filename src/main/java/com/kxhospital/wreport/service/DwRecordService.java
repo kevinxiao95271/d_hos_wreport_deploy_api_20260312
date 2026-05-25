@@ -56,6 +56,9 @@ public interface DwRecordService {
                                    MultipartFile file, LoginUser user);
     void deleteAttachment(Long attachmentId, LoginUser user);
 
+    /** 下载附件（Content-Disposition 携带原始文件名） */
+    void downloadAttachment(Long attachmentId, LoginUser user, javax.servlet.http.HttpServletResponse response);
+
     // ── 提交/审核 ─────────────────────────────────────
     void submit(Long recordId, LoginUser user);
     void audit(Long recordId, Integer result, String remark, LoginUser user);

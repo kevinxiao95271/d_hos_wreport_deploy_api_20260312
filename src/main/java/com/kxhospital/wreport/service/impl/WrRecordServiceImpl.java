@@ -267,8 +267,8 @@ public class WrRecordServiceImpl implements WrRecordService {
     }
 
     @Override
-    public IPage<WrRecord> adminPage(Page<WrRecord> page, Long taskId, String orgName, Integer status) {
-        return recordMapper.selectAdminPage(page, taskId, orgName, status);
+    public IPage<WrRecord> adminPage(Page<WrRecord> page, Long taskId, String orgName, Integer status, Integer rejectApplyStatus) {
+        return recordMapper.selectAdminPage(page, taskId, orgName, status, rejectApplyStatus);
     }
 
     @Override
@@ -433,7 +433,7 @@ public class WrRecordServiceImpl implements WrRecordService {
     @Override
     public void exportExcel(Long taskId, HttpServletResponse response) {
         List<WrRecord> records = recordMapper.selectAdminPage(
-                new Page<>(1, 10000), taskId, null, null).getRecords();
+                new Page<>(1, 10000), taskId, null, null, null).getRecords();
 
         List<ExportRow> rows = records.stream().map(r -> {
             ExportRow row = new ExportRow();
