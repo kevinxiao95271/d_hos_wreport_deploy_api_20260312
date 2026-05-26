@@ -659,7 +659,7 @@ UPDATE dw_module_config SET score_desc =
 WHERE module_key = 'annual_work';
 
 UPDATE dw_module_config SET score_desc =
-'信息化建设相关工作情况，请上传佐证材料（需加盖公章）。'
+'信息化建设相关工作情况，请上传佐证材料。'
 WHERE module_key = 'it_construction';
 
 UPDATE dw_module_config SET score_desc =
@@ -899,7 +899,7 @@ INSERT INTO dw_module_config
     (id, module_key, module_name, score_max, score_rule, is_enabled, sort_order, upload_hint, is_leaf, is_bonus)
 VALUES
 (9000000000000020, 'cat_plan',
- '制定规划/目标/流程，建立数据库', 30,
+ '制定规划/目标/流程', 20,
  '满分30分，含三个子项：年度计划总结（10分）、落实国家及省级政策举措（10分）、质控指标数据库建设（10分）',
  TRUE, 10, '', FALSE, FALSE),
 (9000000000000021, 'cat_network',
@@ -945,7 +945,7 @@ UPDATE dw_module_config SET
     parent_module_key = 'cat_plan',
     score_max         = 10,
     sort_order        = 12,
-    upload_hint       = '请上传工作指引落实相关佐证材料，包括制定下发文件及推进节点记录（需加盖公章）',
+    upload_hint       = '请上传工作指引落实相关佐证材料，包括制定下发文件及推进节点记录',
     score_rule        = '落实工作指引内容，制定并下发且按时间节点推进（10分）；是否存在因主观原因导致重大任务未完成的情况（酌情扣分）',
     update_time       = NOW()
 WHERE module_key = 'annual_work';
@@ -1063,17 +1063,17 @@ VALUES
 -- 4.2 国家医疗服务与质量安全报告
 (9000000000000033, 'national_report',
  '国家医疗服务与质量安全报告', 10,
- '近3年撰写本专业质控数据分析报告、参与撰写《医疗服务与质量安全报告》国家分册情况（10分）',
+ '近5年撰写本专业质控数据分析报告、参与撰写《医疗服务与质量安全报告》国家分册情况（10分）',
  TRUE, 42,
- '请勾选近3年（含统计年度及前两年）参与撰写国家分册的年度，并上传对应年度证明材料。',
+ '请勾选近5年（含统计年度及前四年）参与撰写国家分册的年度，并上传对应年度证明材料。',
  'cat_report', TRUE, FALSE),
 
 -- 4.3 浙江省医疗服务与质量安全报告
 (9000000000000034, 'prov_report',
  '浙江省医疗服务与质量安全报告', 10,
- '近3年参与《浙江省医疗服务与质量安全报告》撰写情况（10分）',
+ '近5年参与《浙江省医疗服务与质量安全报告》撰写情况（10分）',
  TRUE, 43,
- '请勾选近3年（含统计年度及前两年）参与撰写省报告的年度，并上传对应年度证明材料。',
+ '请勾选近5年（含统计年度及前四年）参与撰写省报告的年度，并上传对应年度证明材料。',
  'cat_report', TRUE, FALSE),
 
 -- 加分项3：积极完成行政指令性任务
@@ -1125,11 +1125,11 @@ UPDATE dw_module_config SET score_desc =
 WHERE module_key = 'cat_bonus';
 
 UPDATE dw_module_config SET score_desc =
-'请提交年度工作计划及年度工作总结（需加盖公章），并确保按规定时限报送。'
+'请提交工作指引及年度工作总结，并确保按规定时限报送。'
 WHERE module_key = 'work_plan';
 
 UPDATE dw_module_config SET score_desc =
-'请提交工作指引落实相关佐证材料，包括制定下发文件及推进节点记录（需加盖公章）。'
+'请提交工作指引落实相关佐证材料，包括制定下发文件及推进节点记录。'
 WHERE module_key = 'annual_work';
 
 UPDATE dw_module_config SET score_desc =
@@ -1161,11 +1161,23 @@ UPDATE dw_module_config SET score_desc =
 WHERE module_key = 'indicator_monitor';
 
 UPDATE dw_module_config SET score_desc =
-'请勾选近3年（含统计年度及前两年）参与撰写国家分册的年度，并上传对应年度证明材料。'
+'请勾选近5年（含统计年度及前四年）参与撰写国家分册的年度，并上传对应年度证明材料。'
+WHERE module_key = 'national_report';
+
+UPDATE dw_module_config SET score_rule =
+'近5年撰写本专业质控数据分析报告、参与撰写《医疗服务与质量安全报告》国家分册情况（10分）',
+    upload_hint = '请勾选近5年（含统计年度及前四年）参与撰写国家分册的年度，并上传对应年度证明材料。',
+    update_time = NOW()
 WHERE module_key = 'national_report';
 
 UPDATE dw_module_config SET score_desc =
-'请勾选近3年（含统计年度及前两年）参与撰写省报告的年度，并上传对应年度证明材料。'
+'请勾选近5年（含统计年度及前四年）参与撰写省报告的年度，并上传对应年度证明材料。'
+WHERE module_key = 'prov_report';
+
+UPDATE dw_module_config SET score_rule =
+'近5年参与《浙江省医疗服务与质量安全报告》撰写情况（10分）',
+    upload_hint = '请勾选近5年（含统计年度及前四年）参与撰写省报告的年度，并上传对应年度证明材料。',
+    update_time = NOW()
 WHERE module_key = 'prov_report';
 
 UPDATE dw_module_config SET score_desc =

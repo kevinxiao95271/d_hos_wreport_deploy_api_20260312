@@ -806,12 +806,12 @@ public class DwRecordServiceImpl implements DwRecordService {
         }).collect(Collectors.toList());
     }
 
-    /** 国家/省报告模块：按近3年 slot（y2026）分组，兼容旧 evidence 槽位归入 statYear */
+    /** 国家/省报告模块：按近5年 slot（y2026）分组，兼容旧 evidence 槽位归入 statYear */
     private Map<String, List<DwAttachmentVO>> buildYearReportFiles(
             Map<String, List<DwAttachment>> attMap, String moduleKey, String statYear) {
         Map<String, List<DwAttachmentVO>> out = new LinkedHashMap<>();
         int baseYear = parseStatYear(statYear);
-        for (int y = baseYear; y >= baseYear - 2; y--) {
+        for (int y = baseYear; y >= baseYear - 4; y--) {
             String slot = "y" + y;
             List<DwAttachment> files = attMap.get(moduleKey + "|null|" + slot);
             if ((files == null || files.isEmpty()) && y == baseYear) {

@@ -145,7 +145,7 @@ public class DwConfigServiceImpl implements DwConfigService {
             throw new BusinessException(400, "不支持的字段类型：" + type + "，允许值：text/number/enum/checkbox");
     }
 
-    /** 国家/省报告：近3年勾选字段 checked_2026 等，按统计年度动态生成 */
+    /** 国家/省报告：近5年勾选字段 checked_2026 等，按统计年度动态生成 */
     private boolean isAllowedDynamicField(String moduleKey, String fieldKey) {
         if (fieldKey == null) return false;
         if ("module_self_score".equals(fieldKey)) return true;
