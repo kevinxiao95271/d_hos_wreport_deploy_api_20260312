@@ -59,6 +59,29 @@ public interface SysUserMapper {
     List<Map<String, Object>> listOrgUsers();
 
     /**
+     * 按机构去重后的 qcUser 机构列表（同一机构多个用户时取 user_id 最小的一个）。
+     *
+     * @param orgCategory null=质控中心+技术指导中心(1,2)；1=质控中心；2=技术指导中心
+     */
+    @Select("<script>" +
+            "SELECT DISTINCT ON (p.org_id) " +
+            "  p.org_id AS \"orgId\", o.org_name AS \"orgName\", o.org_category AS \"orgCategory\", " +
+            "  u.user_id AS \"userId\", u.account, u.real_name AS \"realName\" " +
+            "FROM sys_user u " +
+            "JOIN sys_user_role ur ON ur.user_id = u.user_id " +
+            "JOIN sys_role r ON r.role_id = ur.role_id AND r.role_code = 'qcUser' " +
+            "JOIN hr_person p ON p.person_id = u.person_id AND p.del_flag = 'N' " +
+            "JOIN hr_organization o ON o.org_id = p.org_id AND o.del_flag = 'N' AND o.organization_type = '2' " +
+            "WHERE u.del_flag = 'N' AND u.status_flag = 1 " +
+            "<choose>" +
+            "  <when test='orgCategory != null'>AND o.org_category = CAST(#{orgCategory} AS VARCHAR)</when>" +
+            "  <otherwise>AND o.org_category IN ('1', '2')</otherwise>" +
+            "</choose>" +
+            "ORDER BY p.org_id, u.user_id" +
+            "</script>")
+    List<Map<String, Object>> listDistinctQcOrgs(@Param("orgCategory") Integer orgCategory);
+
+    /**
      * 按机构 ID 列表查 qcUser 用户（orgIds 为空/null 时返回全部可分配机构用户）。
      */
     @org.apache.ibatis.annotations.Select("<script>" +

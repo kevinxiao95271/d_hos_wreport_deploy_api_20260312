@@ -2,6 +2,7 @@ package com.kxhospital.wreport.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.kxhospital.wreport.common.BusinessException;
+import com.kxhospital.wreport.common.DwTaskModuleKeys;
 import com.kxhospital.wreport.common.LoginUser;
 import com.kxhospital.wreport.config.MinioProperties;
 import com.kxhospital.wreport.config.MinioService;
@@ -9,7 +10,9 @@ import com.kxhospital.wreport.entity.*;
 import com.kxhospital.wreport.mapper.*;
 import com.kxhospital.wreport.pojo.request.*;
 import com.kxhospital.wreport.cache.DwRegionCache;
+import com.kxhospital.wreport.cache.DwModuleConfigCache;
 import com.kxhospital.wreport.pojo.response.DwAdminOverviewVO;
+import com.kxhospital.wreport.pojo.response.DwDashboardModuleStatsVO;
 import com.kxhospital.wreport.pojo.response.DwAttachmentVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO.*;
@@ -18,6 +21,7 @@ import com.kxhospital.wreport.pojo.response.RegionNodeVO;
 import com.kxhospital.wreport.pojo.response.TaskScopeOrgVO;
 import com.kxhospital.wreport.service.DwRecordService;
 import com.kxhospital.wreport.service.DwTaskModuleService;
+import com.kxhospital.wreport.util.DwSubRecordSortUtil;
 import com.kxhospital.wreport.service.WrTodoMessageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,10 +62,17 @@ public class DwRecordServiceImpl implements DwRecordService {
     private final MinioProperties    minioProps;
     private final com.kxhospital.wreport.service.DwConfigService configService;
     private final DwTaskModuleService dwTaskModuleService;
+    private final DwModuleConfigCache moduleConfigCache;
+    private final HrOrganizationMapper hrOrganizationMapper;
     private final DwRegionCache      regionCache;
     private final WrTodoMessageService todoMessageService;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    private static final Set<String> UPLOAD_FILL_MODULES = Collections.unmodifiableSet(new HashSet<>(Arrays.asList(
+            "work_plan", "annual_work", "national_report", "prov_report", "activity_report", "bonus_admin",
+            "indicator_db", "indicator_monitor", "network_build", "funding"
+    )));
 
     // ─────────────────────────────────────────────────────────────
     // 获取或初始化填报记录
@@ -142,7 +153,7 @@ public class DwRecordServiceImpl implements DwRecordService {
             row.setStatYear(t.getStatYear());
             row.setStatQuarter(t.getStatQuarter());
             row.setReadOnly(true);
-            row.setEnabledModuleKeys(new ArrayList<>(dwTaskModuleService.resolveEnabledModuleKeys(t.getId())));
+            row.setEnabledModuleKeys(dwTaskModuleService.listEnabledModuleKeysInDisplayOrder(t.getId()));
             if (rec != null) {
                 row.setRecordId(rec.getId());
                 row.setRecordStatus(rec.getStatus());
@@ -590,7 +601,7 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setStatus(record.getStatus());
         vo.setAuditRemark(record.getAuditRemark());
         vo.setReadOnly(computeReadOnly(record, task, user, forceReadOnly));
-        vo.setEnabledModuleKeys(new ArrayList<>(dwTaskModuleService.resolveEnabledModuleKeys(record.getTaskId())));
+        vo.setEnabledModuleKeys(dwTaskModuleService.listEnabledModuleKeysInDisplayOrder(record.getTaskId()));
 
         // 所有附件按 subRecordId + moduleType + slot 分组
         List<DwAttachment> allAtts = attachmentMapper.listByRecord(rid);
@@ -607,8 +618,7 @@ public class DwRecordServiceImpl implements DwRecordService {
         // 季度任务不参与打分：自评分数据对所有角色（包括管理员）均不返回
         vo.setModuleSelfScores(isQuarterlyTask ? null : buildModuleSelfScores(extraMap));
 
-        // 质控会议
-        vo.setMeetings(meetingMapper.listByRecord(rid).stream().map(m -> {
+        List<DwMeetingVO> meetings = meetingMapper.listByRecord(rid).stream().map(m -> {
             DwMeetingVO mv = new DwMeetingVO();
             BeanUtils.copyProperties(m, mv);
             mv.setMeetingStartDate(formatDate(m.getMeetingStartDate()));
@@ -619,10 +629,12 @@ public class DwRecordServiceImpl implements DwRecordService {
             mv.setSignins(toVOList(attMap.get("meeting|" + m.getId() + "|signin")));
             mv.setExtraValues(extraMap.getOrDefault("meeting|" + m.getId(), Collections.emptyMap()));
             return mv;
-        }).collect(Collectors.toList()));
+        }).collect(Collectors.toList());
+        DwSubRecordSortUtil.sortMeetings(meetings);
+        vo.setMeetings(meetings);
 
         // 质控培训
-        vo.setTrainings(trainingMapper.listByRecord(rid).stream().map(t -> {
+        List<DwTrainingVO> trainings = trainingMapper.listByRecord(rid).stream().map(t -> {
             DwTrainingVO tv = new DwTrainingVO();
             BeanUtils.copyProperties(t, tv);
             tv.setTrainingStartDate(formatDate(t.getTrainingStartDate()));
@@ -632,11 +644,13 @@ public class DwRecordServiceImpl implements DwRecordService {
             tv.setPhotos(toVOList(attMap.get("training|" + t.getId() + "|photo")));
             tv.setExtraValues(extraMap.getOrDefault("training|" + t.getId(), Collections.emptyMap()));
             return tv;
-        }).collect(Collectors.toList()));
+        }).collect(Collectors.toList());
+        DwSubRecordSortUtil.sortTrainings(trainings);
+        vo.setTrainings(trainings);
 
         // 质控指导（含市/县质控中心名称反查及分组，数据来自内存缓存）
         Map<Integer, String> regionMap = buildRegionMap();
-        vo.setGuidances(guidanceMapper.listByRecord(rid).stream().map(g -> {
+        List<DwGuidanceVO> guidances = guidanceMapper.listByRecord(rid).stream().map(g -> {
             DwGuidanceVO gv = new DwGuidanceVO();
             BeanUtils.copyProperties(g, gv);
             gv.setGuidanceStartDate(formatDate(g.getGuidanceStartDate()));
@@ -648,10 +662,12 @@ public class DwRecordServiceImpl implements DwRecordService {
             gv.setEvidences(toVOList(attMap.get("guidance|" + g.getId() + "|evidence")));
             gv.setExtraValues(extraMap.getOrDefault("guidance|" + g.getId(), Collections.emptyMap()));
             return gv;
-        }).collect(Collectors.toList()));
+        }).collect(Collectors.toList());
+        DwSubRecordSortUtil.sortGuidances(guidances);
+        vo.setGuidances(guidances);
 
         // 质控调研
-        vo.setSurveys(surveyMapper.listByRecord(rid).stream().map(s -> {
+        List<DwSurveyVO> surveys = surveyMapper.listByRecord(rid).stream().map(s -> {
             DwSurveyVO sv = new DwSurveyVO();
             BeanUtils.copyProperties(s, sv);
             sv.setSurveyStartDate(formatDate(s.getSurveyStartDate()));
@@ -661,10 +677,12 @@ public class DwRecordServiceImpl implements DwRecordService {
             sv.setPhotos(toVOList(attMap.get("survey|" + s.getId() + "|photo")));
             sv.setExtraValues(extraMap.getOrDefault("survey|" + s.getId(), Collections.emptyMap()));
             return sv;
-        }).collect(Collectors.toList()));
+        }).collect(Collectors.toList());
+        DwSubRecordSortUtil.sortSurveys(surveys);
+        vo.setSurveys(surveys);
 
         // 质控数据分析报告（多条，季度可填）
-        vo.setDataAnalysisReports(dataAnalysisMapper.listByRecord(rid).stream().map(da -> {
+        List<DwRecordDetailVO.DwDataAnalysisVO> dataAnalysisReports = dataAnalysisMapper.listByRecord(rid).stream().map(da -> {
             DwRecordDetailVO.DwDataAnalysisVO dav = new DwRecordDetailVO.DwDataAnalysisVO();
             dav.setId(da.getId());
             dav.setReportName(da.getReportName());
@@ -672,7 +690,9 @@ public class DwRecordServiceImpl implements DwRecordService {
             if (isQuarterlyTask) fillStartQuarter(dav, da.getReportDate());
             dav.setFiles(toVOList(attMap.get("data_analysis_report|" + da.getId() + "|file")));
             return dav;
-        }).collect(Collectors.toList()));
+        }).collect(Collectors.toList());
+        DwSubRecordSortUtil.sortDataAnalysisReports(dataAnalysisReports);
+        vo.setDataAnalysisReports(dataAnalysisReports);
 
         // 纯上传模块（含 record 级扩展字段）
         vo.setAnnualWorkFiles(toVOList(attMap.get("annual_work|null|evidence")));
@@ -1123,6 +1143,292 @@ public class DwRecordServiceImpl implements DwRecordService {
         vo.setRejected(rejected);
         vo.setOrgRows(orgRows);
         return vo;
+    }
+
+    @Override
+    public DwDashboardModuleStatsVO dashboardModuleStats(Long taskId, Integer orgCategory) {
+        WrTask task = taskMapper.selectById(taskId);
+        if (task == null || task.getDelFlag() == 1) {
+            throw new BusinessException(404, "任务不存在");
+        }
+        if (!"daily_work".equals(task.getTaskType())) {
+            throw new BusinessException(400, "仅支持日常工作任务的数据看板统计");
+        }
+
+        Integer categoryFilter = normalizeOrgCategoryFilter(orgCategory);
+        List<Map<String, Object>> hrOrgList = hrOrganizationMapper.listQcOrgs(categoryFilter);
+        List<Long> scopedOrgIds = taskOrgScopeMapper.selectOrgIdsByTaskId(taskId);
+        Set<Long> scopedOrgFilter = scopedOrgIds.isEmpty() ? null : new HashSet<>(scopedOrgIds);
+
+        List<TaskScopeOrgVO> scopeList = taskOrgScopeMapper.selectScopeWithStatus(taskId);
+        Map<Long, String> scopeOrgNameMap = scopeList.stream()
+                .filter(s -> s.getOrgId() != null && s.getOrgName() != null)
+                .collect(Collectors.toMap(TaskScopeOrgVO::getOrgId, TaskScopeOrgVO::getOrgName, (a, b) -> a));
+
+        List<WrRecord> records = recordMapper.selectByTaskId(taskId);
+        Map<Long, WrRecord> recordByOrg = records.stream()
+                .collect(Collectors.toMap(WrRecord::getOrgId, r -> r, (a, b) -> a));
+        List<Long> recordIds = records.stream().map(WrRecord::getId).collect(Collectors.toList());
+
+        // 年度任务：与填报页一致，季度模块统计已审核通过的各季度填报数据
+        boolean isAnnualTask = task.getStatQuarter() == null;
+        Map<Long, List<Long>> approvedQuarterlyRecordIdsByOrg = Collections.emptyMap();
+        if (isAnnualTask && task.getStatYear() != null && !task.getStatYear().trim().isEmpty()) {
+            approvedQuarterlyRecordIdsByOrg = buildApprovedQuarterlyRecordIdsByOrg(task.getStatYear().trim());
+        }
+        LinkedHashSet<Long> countRecordIdSet = new LinkedHashSet<>(recordIds);
+        if (isAnnualTask) {
+            approvedQuarterlyRecordIdsByOrg.values().forEach(countRecordIdSet::addAll);
+        }
+        List<Long> countRecordIds = new ArrayList<>(countRecordIdSet);
+
+        Set<String> enabledModuleSet = dwTaskModuleService.resolveEnabledModuleKeys(taskId);
+        List<String> enabledModules = dwTaskModuleService.listEnabledModuleKeysInDisplayOrder(taskId);
+        Map<String, String> moduleNameMap = moduleConfigCache.getAllModules().stream()
+                .collect(Collectors.toMap(DwModuleConfig::getModuleKey, DwModuleConfig::getModuleName, (a, b) -> a));
+
+        Map<Long, Integer> meetingCounts = Collections.emptyMap();
+        Map<Long, Integer> trainingCounts = Collections.emptyMap();
+        Map<Long, Integer> guidanceCounts = Collections.emptyMap();
+        Map<Long, Integer> surveyCounts = Collections.emptyMap();
+        Map<Long, Integer> dataAnalysisCounts = Collections.emptyMap();
+        Map<Long, Integer> bonusPubCounts = Collections.emptyMap();
+        Map<Long, Integer> bonusCompCounts = Collections.emptyMap();
+        Set<Long> fundingSet = Collections.emptySet();
+        Map<String, Map<Long, Integer>> uploadAttachmentCounts = Collections.emptyMap();
+
+        if (!countRecordIds.isEmpty()) {
+            if (enabledModuleSet.contains("meeting")) {
+                meetingCounts = toCountMap(meetingMapper.countByRecordIds(countRecordIds));
+            }
+            if (enabledModuleSet.contains("training")) {
+                trainingCounts = toCountMap(trainingMapper.countByRecordIds(countRecordIds));
+            }
+            if (enabledModuleSet.contains("guidance")) {
+                guidanceCounts = toCountMap(guidanceMapper.countByRecordIds(countRecordIds));
+            }
+            if (enabledModuleSet.contains("survey")) {
+                surveyCounts = toCountMap(surveyMapper.countByRecordIds(countRecordIds));
+            }
+            if (enabledModuleSet.contains("data_analysis_report")) {
+                dataAnalysisCounts = toCountMap(dataAnalysisMapper.countByRecordIds(countRecordIds));
+            }
+            if (enabledModuleSet.contains("bonus_pub")) {
+                bonusPubCounts = toCountMap(bonusMapper.countByRecordIdsAndBonusType(countRecordIds, "publication"));
+            }
+            if (enabledModuleSet.contains("bonus_comp")) {
+                bonusCompCounts = toCountMap(bonusMapper.countByRecordIdsAndBonusType(countRecordIds, "competition"));
+            }
+            if (enabledModuleSet.contains("funding")) {
+                fundingSet = new HashSet<>(fundingMapper.existingRecordIds(countRecordIds));
+            }
+            boolean needUpload = enabledModuleSet.stream().anyMatch(UPLOAD_FILL_MODULES::contains);
+            if (needUpload) {
+                uploadAttachmentCounts = toUploadCountMap(attachmentMapper.countUploadModulesByRecordIds(countRecordIds));
+            }
+        }
+
+        List<DwDashboardModuleStatsVO.ModuleItem> moduleItems = new ArrayList<>();
+        for (String key : enabledModules) {
+            DwDashboardModuleStatsVO.ModuleItem item = new DwDashboardModuleStatsVO.ModuleItem();
+            item.setModuleKey(key);
+            item.setModuleName(moduleNameMap.getOrDefault(key, key));
+            moduleItems.add(item);
+        }
+
+        List<DwDashboardModuleStatsVO.OrgRow> orgRows = new ArrayList<>();
+        for (Map<String, Object> hrOrg : hrOrgList) {
+            if (hrOrg.get("orgId") == null) {
+                continue;
+            }
+            Long orgId = ((Number) hrOrg.get("orgId")).longValue();
+            if (scopedOrgFilter != null && !scopedOrgFilter.contains(orgId)) {
+                continue;
+            }
+            DwDashboardModuleStatsVO.OrgRow row = new DwDashboardModuleStatsVO.OrgRow();
+            row.setOrgId(orgId);
+            row.setOrgName(hrOrg.get("orgName") != null
+                    ? String.valueOf(hrOrg.get("orgName"))
+                    : scopeOrgNameMap.get(orgId));
+            if (hrOrg.get("orgCategory") != null) {
+                row.setOrgCategory(parseOrgCategory(hrOrg.get("orgCategory")));
+            }
+            WrRecord rec = recordByOrg.get(orgId);
+            Long rid = rec != null ? rec.getId() : null;
+            row.setRecordId(rid);
+            List<Long> approvedQuarterlyIds = isAnnualTask
+                    ? approvedQuarterlyRecordIdsByOrg.getOrDefault(orgId, Collections.emptyList())
+                    : Collections.emptyList();
+            LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
+            for (String moduleKey : enabledModules) {
+                int stat;
+                if (isAnnualTask && DwTaskModuleKeys.QUARTER_MODULES.contains(moduleKey)) {
+                    List<Long> aggregateIds = new ArrayList<>();
+                    if (rid != null) {
+                        aggregateIds.add(rid);
+                    }
+                    aggregateIds.addAll(approvedQuarterlyIds);
+                    stat = sumModuleStat(moduleKey, aggregateIds, meetingCounts, trainingCounts,
+                            guidanceCounts, surveyCounts, dataAnalysisCounts, bonusPubCounts, bonusCompCounts,
+                            fundingSet, uploadAttachmentCounts);
+                } else {
+                    stat = resolveModuleStat(moduleKey, rid, meetingCounts, trainingCounts,
+                            guidanceCounts, surveyCounts, dataAnalysisCounts, bonusPubCounts, bonusCompCounts,
+                            fundingSet, uploadAttachmentCounts);
+                }
+                counts.put(moduleKey, stat);
+            }
+            row.setModuleCounts(counts);
+            orgRows.add(row);
+        }
+
+        DwDashboardModuleStatsVO vo = new DwDashboardModuleStatsVO();
+        vo.setTaskId(taskId);
+        vo.setTaskName(task.getTaskName());
+        vo.setStatYear(task.getStatYear());
+        vo.setStatQuarter(task.getStatQuarter());
+        vo.setTaskPeriodLabel(buildTaskPeriodLabel(task));
+        vo.setOrgCategory(categoryFilter);
+        vo.setOrgCategoryLabel(orgCategoryLabel(categoryFilter));
+        vo.setModules(moduleItems);
+        vo.setOrgs(orgRows);
+        return vo;
+    }
+
+    private Integer normalizeOrgCategoryFilter(Integer orgCategory) {
+        if (orgCategory == null || orgCategory == 0) {
+            return null;
+        }
+        if (orgCategory != 1 && orgCategory != 2) {
+            throw new BusinessException(400, "机构维度参数无效");
+        }
+        return orgCategory;
+    }
+
+    private Integer parseOrgCategory(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private String orgCategoryLabel(Integer orgCategory) {
+        if (orgCategory == null) return "所有";
+        if (orgCategory == 1) return "质控中心";
+        if (orgCategory == 2) return "技术指导中心";
+        return "所有";
+    }
+
+    private String buildTaskPeriodLabel(WrTask task) {
+        if (task.getStatQuarter() == null) {
+            return (task.getStatYear() != null ? task.getStatYear() : "") + "年度任务";
+        }
+        return (task.getStatYear() != null ? task.getStatYear() : "") + "年Q" + task.getStatQuarter();
+    }
+
+    private Map<String, Map<Long, Integer>> toUploadCountMap(List<Map<String, Object>> rows) {
+        Map<String, Map<Long, Integer>> result = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object ridObj = row.get("rid");
+            Object mkObj = row.get("mk");
+            Object cntObj = row.get("cnt");
+            if (ridObj == null || mkObj == null || cntObj == null) continue;
+            long rid = ((Number) ridObj).longValue();
+            String mk = String.valueOf(mkObj);
+            int cnt = ((Number) cntObj).intValue();
+            result.computeIfAbsent(mk, k -> new HashMap<>()).put(rid, cnt);
+        }
+        return result;
+    }
+
+    /**
+     * 年度任务看板：收集同 statYear 下各季度任务已审核通过（status=2）的 recordId，按机构分组。
+     * 与 buildDetail 嵌入 quarterlySnapshots（approvedOnly=true）的规则一致。
+     */
+    private Map<Long, List<Long>> buildApprovedQuarterlyRecordIdsByOrg(String statYear) {
+        List<WrTask> tasks = taskMapper.selectDailyWorkByStatYear(statYear);
+        Map<Long, List<Long>> byOrg = new HashMap<>();
+        for (WrTask t : tasks) {
+            if (t.getStatQuarter() == null) {
+                continue;
+            }
+            for (WrRecord rec : recordMapper.selectByTaskId(t.getId())) {
+                if (rec.getOrgId() == null) {
+                    continue;
+                }
+                if (rec.getStatus() == null || rec.getStatus() != 2) {
+                    continue;
+                }
+                byOrg.computeIfAbsent(rec.getOrgId(), k -> new ArrayList<>()).add(rec.getId());
+            }
+        }
+        return byOrg;
+    }
+
+    private int sumModuleStat(String moduleKey, List<Long> recordIds,
+                              Map<Long, Integer> meetingCounts,
+                              Map<Long, Integer> trainingCounts,
+                              Map<Long, Integer> guidanceCounts,
+                              Map<Long, Integer> surveyCounts,
+                              Map<Long, Integer> dataAnalysisCounts,
+                              Map<Long, Integer> bonusPubCounts,
+                              Map<Long, Integer> bonusCompCounts,
+                              Set<Long> fundingSet,
+                              Map<String, Map<Long, Integer>> uploadAttachmentCounts) {
+        int sum = 0;
+        for (Long recordId : recordIds) {
+            sum += resolveModuleStat(moduleKey, recordId, meetingCounts, trainingCounts,
+                    guidanceCounts, surveyCounts, dataAnalysisCounts, bonusPubCounts, bonusCompCounts,
+                    fundingSet, uploadAttachmentCounts);
+        }
+        return sum;
+    }
+
+    private int resolveModuleStat(String moduleKey, Long recordId,
+                                  Map<Long, Integer> meetingCounts,
+                                  Map<Long, Integer> trainingCounts,
+                                  Map<Long, Integer> guidanceCounts,
+                                  Map<Long, Integer> surveyCounts,
+                                  Map<Long, Integer> dataAnalysisCounts,
+                                  Map<Long, Integer> bonusPubCounts,
+                                  Map<Long, Integer> bonusCompCounts,
+                                  Set<Long> fundingSet,
+                                  Map<String, Map<Long, Integer>> uploadAttachmentCounts) {
+        if (recordId == null) {
+            return 0;
+        }
+        switch (moduleKey) {
+            case "meeting":
+                return meetingCounts.getOrDefault(recordId, 0);
+            case "training":
+                return trainingCounts.getOrDefault(recordId, 0);
+            case "guidance":
+                return guidanceCounts.getOrDefault(recordId, 0);
+            case "survey":
+                return surveyCounts.getOrDefault(recordId, 0);
+            case "data_analysis_report":
+                return dataAnalysisCounts.getOrDefault(recordId, 0);
+            case "bonus_pub":
+                return bonusPubCounts.getOrDefault(recordId, 0);
+            case "bonus_comp":
+                return bonusCompCounts.getOrDefault(recordId, 0);
+            case "funding":
+                return fundingSet.contains(recordId) ? 1 : 0;
+            default:
+                if (UPLOAD_FILL_MODULES.contains(moduleKey)) {
+                    int cnt = uploadAttachmentCounts
+                            .getOrDefault(moduleKey, Collections.emptyMap())
+                            .getOrDefault(recordId, 0);
+                    return cnt > 0 ? 1 : 0;
+                }
+                return uploadAttachmentCounts
+                        .getOrDefault(moduleKey, Collections.emptyMap())
+                        .getOrDefault(recordId, 0);
+        }
     }
 
     /**

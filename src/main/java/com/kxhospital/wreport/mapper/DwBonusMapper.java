@@ -18,4 +18,11 @@ public interface DwBonusMapper extends BaseMapper<DwBonus> {
             "WHERE record_id IN <foreach item='id' collection='ids' open='(' separator=',' close=')'>#{id}</foreach> " +
             "GROUP BY record_id</script>")
     List<Map<String, Object>> countByRecordIds(@Param("ids") List<Long> ids);
+
+    @Select("<script>SELECT record_id AS rid, COUNT(*) AS cnt FROM dw_bonus " +
+            "WHERE del_flag = 0 AND bonus_type = #{bonusType} AND record_id IN " +
+            "<foreach item='id' collection='ids' open='(' separator=',' close=')'>#{id}</foreach> " +
+            "GROUP BY record_id</script>")
+    List<Map<String, Object>> countByRecordIdsAndBonusType(@Param("ids") List<Long> ids,
+                                                           @Param("bonusType") String bonusType);
 }

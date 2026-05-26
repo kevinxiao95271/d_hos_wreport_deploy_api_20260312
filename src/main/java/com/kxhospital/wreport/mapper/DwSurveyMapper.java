@@ -11,7 +11,10 @@ import java.util.Map;
 
 @Mapper
 public interface DwSurveyMapper extends BaseMapper<DwSurvey> {
-    @Select("SELECT * FROM dw_survey WHERE record_id = #{recordId} AND del_flag = 0 ORDER BY survey_start_date DESC, survey_start_half DESC, id DESC")
+    @Select("SELECT * FROM dw_survey WHERE record_id = #{recordId} AND del_flag = 0 " +
+            "ORDER BY survey_start_date ASC NULLS LAST, " +
+            "CASE WHEN survey_start_half IN ('PM', '下午') THEN 1 WHEN survey_start_half IN ('AM', '上午') THEN 0 ELSE 0 END ASC, " +
+            "create_time ASC, id ASC")
     List<DwSurvey> listByRecord(@Param("recordId") Long recordId);
 
     @Select("<script>SELECT record_id AS rid, COUNT(*) AS cnt FROM dw_survey " +

@@ -5,6 +5,7 @@ import com.kxhospital.wreport.entity.*;
 import com.kxhospital.wreport.pojo.request.*;
 import com.kxhospital.wreport.pojo.response.DwAttachmentVO;
 import com.kxhospital.wreport.pojo.response.DwAdminOverviewVO;
+import com.kxhospital.wreport.pojo.response.DwDashboardModuleStatsVO;
 import com.kxhospital.wreport.pojo.response.DwRecordDetailVO;
 import com.kxhospital.wreport.pojo.response.DwYearQuarterRecordVO;
 import org.springframework.web.multipart.MultipartFile;
@@ -73,4 +74,11 @@ public interface DwRecordService {
      * approvedOnly=true 时仅返回已审核通过（recordStatus=2）的季度记录。
      */
     List<DwYearQuarterRecordVO> yearSummary(String statYear, Long orgId, Boolean approvedOnly, LoginUser user);
+
+    /**
+     * 数据看板：按任务与机构类别统计各启用模块的填报数量。
+     *
+     * @param orgCategory null 或 0=所有(1+2)；1=质控中心；2=技术指导中心
+     */
+    DwDashboardModuleStatsVO dashboardModuleStats(Long taskId, Integer orgCategory);
 }

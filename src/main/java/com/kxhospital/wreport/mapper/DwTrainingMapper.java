@@ -15,7 +15,9 @@ public interface DwTrainingMapper extends BaseMapper<DwTraining> {
             "training_end_date, training_end_half, training_form, training_content, " +
             "attendee_count AS training_people_count, del_flag, create_user, create_time, update_time " +
             "FROM dw_training WHERE record_id = #{recordId} AND del_flag = 0 " +
-            "ORDER BY training_start_date DESC, training_start_half DESC, id DESC")
+            "ORDER BY training_start_date ASC NULLS LAST, " +
+            "CASE WHEN training_start_half IN ('PM', '下午') THEN 1 WHEN training_start_half IN ('AM', '上午') THEN 0 ELSE 0 END ASC, " +
+            "create_time ASC, id ASC")
     List<DwTraining> listByRecord(@Param("recordId") Long recordId);
 
     @Select("<script>SELECT record_id AS rid, COUNT(*) AS cnt FROM dw_training " +

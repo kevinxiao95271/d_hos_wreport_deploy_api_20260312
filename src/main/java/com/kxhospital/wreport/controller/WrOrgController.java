@@ -1,7 +1,7 @@
 package com.kxhospital.wreport.controller;
 
 import com.kxhospital.wreport.common.R;
-import com.kxhospital.wreport.mapper.SysUserMapper;
+import com.kxhospital.wreport.mapper.HrOrganizationMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -18,8 +18,8 @@ import java.util.Map;
 
 /**
  * 机构列表接口。
- * <p>供管理员在"分配机构"弹窗中加载可选机构列表，替代已下线的调试接口 GET /api/auth/users。</p>
- * <p>数据链路：sys_user → hr_person → hr_organization（不使用 sys_user.org_id）。</p>
+ * <p>供管理员在"分配机构"弹窗中加载可选机构列表。</p>
+ * <p>数据取自 hr_organization：organization_type='2' 且 org_category 为 1（质控中心）或 2（技术指导中心）。</p>
  */
 @Tag(name = "机构管理")
 @RestController
@@ -28,31 +28,22 @@ import java.util.Map;
 @SecurityRequirement(name = "BearerAuth")
 public class WrOrgController {
 
-    private final SysUserMapper sysUserMapper;
+    private final HrOrganizationMapper hrOrganizationMapper;
 
     /**
-     * 返回所有可分配给任务的机构用户列表（角色 qcUser，启用且未删除）。
-     * <p>前端在任务"分配机构"弹窗中调用此接口渲染可选机构复选框。</p>
-     * <p>返回字段：</p>
-     * <ul>
-     *   <li>userId  — sys_user.user_id（String，防精度丢失）</li>
-     *   <li>account — 登录账号</li>
-     *   <li>realName — 用户真实姓名</li>
-     *   <li>orgId   — hr_person.org_id（String）</li>
-     *   <li>orgName — hr_organization.org_name</li>
-     * </ul>
+     * 返回可分配给任务的机构列表（质控中心 + 技术指导中心，共约 68 家）。
+     * <p>前端在任务"分配机构"弹窗中调用此接口渲染可选机构复选框，保存时使用 orgId。</p>
+     * <p>返回字段：orgId、orgName、orgCategory（1=质控中心，2=技术指导中心）</p>
      */
     @Operation(summary = "可分配机构列表（管理员）",
-               description = "返回所有角色为 qcUser 的机构用户，供任务分配机构弹窗使用。" +
-                             "数据通过 sys_user.person_id → hr_person → hr_organization 获取，保证机构名准确。")
+               description = "返回 hr_organization 中 organization_type=2 且 org_category 为 1/2 的机构，供任务分配机构弹窗使用。")
     @ApiResponse(responseCode = "200", description = "success",
             content = @Content(mediaType = "application/json",
                     examples = @ExampleObject(value = "{\"code\":200,\"message\":\"success\",\"data\":[" +
-                            "{\"userId\":\"7437930037937963010\",\"account\":\"qc_001\"," +
-                            "\"realName\":\"省神经外科技术指导中心\",\"orgId\":\"7437930037585641473\"," +
-                            "\"orgName\":\"省神经外科技术指导中心\"}]}")))
+                            "{\"orgId\":\"7437930037585641473\"," +
+                            "\"orgName\":\"省神经外科技术指导中心\",\"orgCategory\":\"2\"}]}")))
     @GetMapping("/list")
     public R<List<Map<String, Object>>> list() {
-        return R.ok(sysUserMapper.listOrgUsers());
+        return R.ok(hrOrganizationMapper.listQcOrgs(null));
     }
 }

@@ -54,6 +54,27 @@ public class DwTaskModuleServiceImpl implements DwTaskModuleService {
         return resolved;
     }
 
+    @Override
+    public List<String> listEnabledModuleKeysInDisplayOrder(Long taskId) {
+        Set<String> enabled = resolveEnabledModuleKeys(taskId);
+        List<String> ordered = new ArrayList<>();
+        for (DwModuleConfig m : moduleConfigCache.getAllModules()) {
+            if (!enabled.contains(m.getModuleKey())) {
+                continue;
+            }
+            if (Boolean.FALSE.equals(m.getIsLeaf())) {
+                continue;
+            }
+            ordered.add(m.getModuleKey());
+        }
+        for (String key : enabled) {
+            if (!ordered.contains(key)) {
+                ordered.add(key);
+            }
+        }
+        return ordered;
+    }
+
     private Set<String> defaultEnabledKeys() {
         return moduleConfigCache.getEnabledModules().stream()
                 .map(DwModuleConfig::getModuleKey)

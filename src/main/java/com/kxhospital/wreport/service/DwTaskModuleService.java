@@ -12,6 +12,11 @@ public interface DwTaskModuleService {
     /** 返回该任务当前启用的 moduleKey 集合（有序） */
     Set<String> resolveEnabledModuleKeys(Long taskId);
 
+    /**
+     * 按 dw_module_config.sort_order 返回任务启用的叶子模块 key，与填报页展示顺序一致。
+     */
+    List<String> listEnabledModuleKeysInDisplayOrder(Long taskId);
+
     /** 替换任务的模块范围（管理员配置用） */
     void replaceModuleScope(Long taskId, List<String> moduleKeys);
 

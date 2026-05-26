@@ -11,7 +11,8 @@ import java.util.Map;
 
 @Mapper
 public interface DwDataAnalysisMapper extends BaseMapper<DwDataAnalysis> {
-    @Select("SELECT * FROM dw_data_analysis WHERE record_id = #{recordId} AND del_flag = 0 ORDER BY report_date DESC, id DESC")
+    @Select("SELECT * FROM dw_data_analysis WHERE record_id = #{recordId} AND del_flag = 0 " +
+            "ORDER BY report_date ASC NULLS LAST, create_time ASC, id ASC")
     List<DwDataAnalysis> listByRecord(@Param("recordId") Long recordId);
 
     @Select("<script>SELECT record_id AS rid, COUNT(*) AS cnt FROM dw_data_analysis " +
