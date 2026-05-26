@@ -478,8 +478,17 @@ public class WrRecordServiceImpl implements WrRecordService {
         response.setSubmitted(toLong(agg.get("submitted")));
         response.setApproved(toLong(agg.get("approved")));
         response.setRejected(toLong(agg.get("rejected")));
-        response.setPendingRejectApply(toLong(agg.get("pendingRejectApply")));
+        response.setPendingRejectApply(toLong(mapAggValue(agg, "pending_reject_apply", "pendingrejectapply", "pendingRejectApply")));
         return response;
+    }
+
+    /** PostgreSQL 未加引号的别名会转小写，兼容多种 key 写法 */
+    private Object mapAggValue(Map<String, Object> agg, String... keys) {
+        if (agg == null) return null;
+        for (String key : keys) {
+            if (agg.containsKey(key)) return agg.get(key);
+        }
+        return null;
     }
 
     private String statusLabel(Integer status) {

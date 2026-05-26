@@ -930,11 +930,11 @@ ON CONFLICT (module_key) DO UPDATE SET
 -- ④ 更新已有叶子节点：挂父级、调分值、刷 wording
 -- 1.1 年度计划总结（原 work_plan，10分不变）
 UPDATE dw_module_config SET
-    module_name       = '年度计划总结',
+    module_name       = '工作指引与年度工作总结',
     parent_module_key = 'cat_plan',
     score_max         = 10,
     sort_order        = 11,
-    upload_hint       = '请分别上传年度工作计划及年度工作总结，并确保按规定时限报送',
+    upload_hint       = '请分别上传工作指引及年度工作总结，并确保按规定时限报送',
     score_rule        = '有计划、总结（10分）；年度工作计划目标清晰、责任明确、措施可行（4分）；年度工作总结完成情况（4分）；计划与总结按规定时限报送（2分）',
     update_time       = NOW()
 WHERE module_key = 'work_plan';

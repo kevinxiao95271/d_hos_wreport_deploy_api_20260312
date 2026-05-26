@@ -1,5 +1,6 @@
 package com.kxhospital.wreport.controller;
 
+import com.kxhospital.wreport.common.QcOrgAssignExclusions;
 import com.kxhospital.wreport.common.R;
 import com.kxhospital.wreport.mapper.HrOrganizationMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,6 +45,6 @@ public class WrOrgController {
                             "\"orgName\":\"省神经外科技术指导中心\",\"orgCategory\":\"2\"}]}")))
     @GetMapping("/list")
     public R<List<Map<String, Object>>> list() {
-        return R.ok(hrOrganizationMapper.listQcOrgs(null));
+        return R.ok(QcOrgAssignExclusions.filterAssignableOrgs(hrOrganizationMapper.listQcOrgs(null)));
     }
 }

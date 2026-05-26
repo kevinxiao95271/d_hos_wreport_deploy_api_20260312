@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.kxhospital.wreport.common.BusinessException;
 import com.kxhospital.wreport.common.LoginUser;
+import com.kxhospital.wreport.common.QcOrgAssignExclusions;
 import com.kxhospital.wreport.entity.WrRecord;
 import com.kxhospital.wreport.entity.WrTask;
 import com.kxhospital.wreport.entity.WrTaskOrgScope;
+import com.kxhospital.wreport.mapper.HrOrganizationMapper;
 import com.kxhospital.wreport.mapper.WrRecordMapper;
 import com.kxhospital.wreport.mapper.WrTaskMapper;
 import com.kxhospital.wreport.mapper.WrTaskOrgScopeMapper;
@@ -30,6 +32,7 @@ public class WrTaskServiceImpl implements WrTaskService {
     private final WrTaskMapper         taskMapper;
     private final WrTaskOrgScopeMapper scopeMapper;
     private final WrRecordMapper       recordMapper;
+    private final HrOrganizationMapper hrOrganizationMapper;
     private final WrTodoMessageService todoMessageService;
 
     @Override
@@ -115,6 +118,10 @@ public class WrTaskServiceImpl implements WrTaskService {
      * 抛出 BusinessException(4031) 阻断操作，前端应先驳回再移出。
      */
     public void replaceScope(Long taskId, List<Long> orgIds, LoginUser user) {
+        List<Map<String, Object>> allQcOrgs = hrOrganizationMapper.listQcOrgs(null);
+        if (orgIds != null && !orgIds.isEmpty()) {
+            orgIds = QcOrgAssignExclusions.filterAssignableOrgIds(orgIds, allQcOrgs);
+        }
         // ── 兜底：计算被移除的机构并检查是否有已提交记录 ──────────────────────
         List<Long> currentOrgIds = scopeMapper.selectOrgIdsByTaskId(taskId);
         if (!currentOrgIds.isEmpty()) {
