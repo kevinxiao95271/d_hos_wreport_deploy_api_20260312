@@ -71,7 +71,7 @@ public interface DwRecordService {
     /**
      * 年度汇总：按 statYear 查该年度下所有 daily_work 季度任务及指定机构的填报快照（只读）。
      * 管理端在查看年度任务时用于展示季度参考数据。
-     * approvedOnly=true 时仅返回已审核通过（recordStatus=2）的季度记录。
+     * approvedOnly=true 时仅返回已审核通过（recordStatus=2）的季度记录；年度任务详情嵌入快照时传 false，展示全部已有季度填报。
      */
     List<DwYearQuarterRecordVO> yearSummary(String statYear, Long orgId, Boolean approvedOnly, LoginUser user);
 

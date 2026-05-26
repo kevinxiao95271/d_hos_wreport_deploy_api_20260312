@@ -136,7 +136,7 @@ public class DwRecordServiceImpl implements DwRecordService {
     /**
      * 构建某年度下所有季度任务的只读快照列表（Q4→Q1）。
      * 仅返回季度任务（statQuarter != null），跳过年度任务自身。
-     * approvedOnly=true 时只返回 status=2（已审核通过）的记录。
+     * approvedOnly=true 时只返回 status=2（已审核通过）且有填报记录的季度；false 时返回所有已有填报记录的季度（含未审核）。
      */
     private List<DwYearQuarterRecordVO> buildQuarterlySnapshots(
             String statYear, Long orgId, boolean approvedOnly, LoginUser user) {
@@ -145,7 +145,8 @@ public class DwRecordServiceImpl implements DwRecordService {
         for (WrTask t : tasks) {
             if (t.getStatQuarter() == null) continue; // 跳过年度任务自身
             WrRecord rec = recordMapper.findByTaskAndOrg(t.getId(), orgId);
-            if (approvedOnly && (rec == null || rec.getStatus() == null || rec.getStatus() != 2)) continue;
+            if (rec == null) continue;
+            if (approvedOnly && (rec.getStatus() == null || rec.getStatus() != 2)) continue;
             DwYearQuarterRecordVO row = new DwYearQuarterRecordVO();
             row.setTaskId(t.getId());
             row.setTaskName(t.getTaskName());
@@ -766,13 +767,12 @@ public class DwRecordServiceImpl implements DwRecordService {
             return bv;
         }).collect(Collectors.toList()));
 
-        // 年度任务（statQuarter=null）时，自动嵌入 Q4→Q1 只读快照
+        // 年度任务（statQuarter=null）时，自动嵌入 Q4→Q1 只读快照（含未审核季度数据，不可在年度页修改）
         // forceReadOnly=true 说明是被 buildQuarterlySnapshots 递归调用，不再嵌套
-        // approvedOnly=true：只有审核通过（status=2）的季度记录才被年度任务采集，全部以 readOnly=true 返回
         if (!forceReadOnly && task != null && task.getStatQuarter() == null
                 && task.getStatYear() != null) {
             vo.setQuarterlySnapshots(
-                    buildQuarterlySnapshots(task.getStatYear(), record.getOrgId(), true, user));
+                    buildQuarterlySnapshots(task.getStatYear(), record.getOrgId(), false, user));
         }
 
         return vo;
@@ -1170,15 +1170,15 @@ public class DwRecordServiceImpl implements DwRecordService {
                 .collect(Collectors.toMap(WrRecord::getOrgId, r -> r, (a, b) -> a));
         List<Long> recordIds = records.stream().map(WrRecord::getId).collect(Collectors.toList());
 
-        // 年度任务：与填报页一致，季度模块统计已审核通过的各季度填报数据
+        // 年度任务：与填报页一致，季度模块统计汇总各季度已有填报数据（含未审核）
         boolean isAnnualTask = task.getStatQuarter() == null;
-        Map<Long, List<Long>> approvedQuarterlyRecordIdsByOrg = Collections.emptyMap();
+        Map<Long, List<Long>> quarterlyRecordIdsByOrg = Collections.emptyMap();
         if (isAnnualTask && task.getStatYear() != null && !task.getStatYear().trim().isEmpty()) {
-            approvedQuarterlyRecordIdsByOrg = buildApprovedQuarterlyRecordIdsByOrg(task.getStatYear().trim());
+            quarterlyRecordIdsByOrg = buildQuarterlyRecordIdsByOrg(task.getStatYear().trim());
         }
         LinkedHashSet<Long> countRecordIdSet = new LinkedHashSet<>(recordIds);
         if (isAnnualTask) {
-            approvedQuarterlyRecordIdsByOrg.values().forEach(countRecordIdSet::addAll);
+            quarterlyRecordIdsByOrg.values().forEach(countRecordIdSet::addAll);
         }
         List<Long> countRecordIds = new ArrayList<>(countRecordIdSet);
 
@@ -1256,8 +1256,8 @@ public class DwRecordServiceImpl implements DwRecordService {
             WrRecord rec = recordByOrg.get(orgId);
             Long rid = rec != null ? rec.getId() : null;
             row.setRecordId(rid);
-            List<Long> approvedQuarterlyIds = isAnnualTask
-                    ? approvedQuarterlyRecordIdsByOrg.getOrDefault(orgId, Collections.emptyList())
+            List<Long> quarterlyRecordIds = isAnnualTask
+                    ? quarterlyRecordIdsByOrg.getOrDefault(orgId, Collections.emptyList())
                     : Collections.emptyList();
             LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
             for (String moduleKey : enabledModules) {
@@ -1267,7 +1267,7 @@ public class DwRecordServiceImpl implements DwRecordService {
                     if (rid != null) {
                         aggregateIds.add(rid);
                     }
-                    aggregateIds.addAll(approvedQuarterlyIds);
+                    aggregateIds.addAll(quarterlyRecordIds);
                     stat = sumModuleStat(moduleKey, aggregateIds, meetingCounts, trainingCounts,
                             guidanceCounts, surveyCounts, dataAnalysisCounts, bonusPubCounts, bonusCompCounts,
                             fundingSet, uploadAttachmentCounts);
@@ -1346,10 +1346,10 @@ public class DwRecordServiceImpl implements DwRecordService {
     }
 
     /**
-     * 年度任务看板：收集同 statYear 下各季度任务已审核通过（status=2）的 recordId，按机构分组。
-     * 与 buildDetail 嵌入 quarterlySnapshots（approvedOnly=true）的规则一致。
+     * 年度任务看板：收集同 statYear 下各季度任务已有 wr_record 的 recordId，按机构分组。
+     * 与 buildDetail 嵌入 quarterlySnapshots（approvedOnly=false）的规则一致。
      */
-    private Map<Long, List<Long>> buildApprovedQuarterlyRecordIdsByOrg(String statYear) {
+    private Map<Long, List<Long>> buildQuarterlyRecordIdsByOrg(String statYear) {
         List<WrTask> tasks = taskMapper.selectDailyWorkByStatYear(statYear);
         Map<Long, List<Long>> byOrg = new HashMap<>();
         for (WrTask t : tasks) {
@@ -1358,9 +1358,6 @@ public class DwRecordServiceImpl implements DwRecordService {
             }
             for (WrRecord rec : recordMapper.selectByTaskId(t.getId())) {
                 if (rec.getOrgId() == null) {
-                    continue;
-                }
-                if (rec.getStatus() == null || rec.getStatus() != 2) {
                     continue;
                 }
                 byOrg.computeIfAbsent(rec.getOrgId(), k -> new ArrayList<>()).add(rec.getId());
