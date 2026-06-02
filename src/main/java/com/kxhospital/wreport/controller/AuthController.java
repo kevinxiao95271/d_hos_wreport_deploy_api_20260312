@@ -1,6 +1,7 @@
 package com.kxhospital.wreport.controller;
 
 import com.kxhospital.wreport.common.LoginUser;
+import com.kxhospital.wreport.common.LoginUserFactory;
 import com.kxhospital.wreport.common.R;
 import com.kxhospital.wreport.config.JwtService;
 import com.kxhospital.wreport.mapper.SysUserMapper;
@@ -16,6 +17,7 @@ import org.springframework.web.client.RestTemplate;
 import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -57,29 +59,17 @@ public class AuthController {
             return R.fail(401, "密码错误");
         }
 
-        // 3. 查角色
+        // 3. 查全部角色
         Long userId = toLong(user.get("id"));
-        String roleCode = sysUserMapper.findRoleCode(userId);
-        if (roleCode == null) roleCode = "qcUser";
+        List<String> roleCodes = sysUserMapper.findRoleCodes(userId);
 
-        // 4. 直接取查询结果中的机构名
-        Long orgId = toLong(user.get("org_id"));
-        String orgName = user.get("org_name") != null ? (String) user.get("org_name") : "";
+        // 4. 构建 LoginUser
+        LoginUser loginUser = LoginUserFactory.fromUserRow(user, roleCodes);
 
-        // 5. 构建 LoginUser
-        LoginUser loginUser = new LoginUser(
-                userId,
-                (String) user.get("account"),
-                (String) user.get("real_name"),
-                orgId,
-                orgName,
-                roleCode
-        );
-
-        // 6. 签发 Token
+        // 5. 签发 Token
         String token = jwtService.generateToken(loginUser);
 
-        // 7. 返回
+        // 6. 返回
         Map<String, Object> result = new HashMap<>();
         result.put("token",    "Bearer " + token);
         result.put("userId",   String.valueOf(loginUser.getUserId()));
@@ -88,6 +78,7 @@ public class AuthController {
         result.put("orgId",    loginUser.getOrgId() != null ? String.valueOf(loginUser.getOrgId()) : null);
         result.put("orgName",  loginUser.getOrgName());
         result.put("roleCode", loginUser.getRoleCode());
+        result.put("roleCodes", loginUser.getRoleCodes());
         return R.ok(result);
     }
 
@@ -135,23 +126,12 @@ public class AuthController {
             return R.fail(401, "本系统不存在该用户: " + account);
         }
 
-        // 4. 查角色和机构名
+        // 4. 查全部角色
         Long userId = toLong(user.get("id"));
-        String roleCode = sysUserMapper.findRoleCode(userId);
-        if (roleCode == null) roleCode = "qcUser";
-
-        Long orgId = toLong(user.get("org_id"));
-        String orgName = user.get("org_name") != null ? (String) user.get("org_name") : "";
+        List<String> roleCodes = sysUserMapper.findRoleCodes(userId);
 
         // 5. 构建 LoginUser 并签发 b 系统自己的 JWT
-        LoginUser loginUser = new LoginUser(
-                userId,
-                (String) user.get("account"),
-                (String) user.get("real_name"),
-                orgId,
-                orgName,
-                roleCode
-        );
+        LoginUser loginUser = LoginUserFactory.fromUserRow(user, roleCodes);
         String token = jwtService.generateToken(loginUser);
 
         // 6. 返回
@@ -163,6 +143,7 @@ public class AuthController {
         result.put("orgId",    loginUser.getOrgId() != null ? String.valueOf(loginUser.getOrgId()) : null);
         result.put("orgName",  loginUser.getOrgName());
         result.put("roleCode", loginUser.getRoleCode());
+        result.put("roleCodes", loginUser.getRoleCodes());
         return R.ok(result);
     }
 

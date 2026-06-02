@@ -33,8 +33,18 @@ public interface SysUserMapper {
     Map<String, Object> findByAccount(@Param("account") String account);
 
     /**
-     * 查用户角色码，用于登录后写入 JWT。
+     * 查用户全部角色码，用于登录后写入 JWT。
      */
+    @Select("SELECT r.role_code FROM sys_user_role ur " +
+            "JOIN sys_role r ON r.role_id = ur.role_id " +
+            "WHERE ur.user_id = #{userId} " +
+            "ORDER BY r.role_code")
+    List<String> findRoleCodes(@Param("userId") Long userId);
+
+    /**
+     * @deprecated 仅保留兼容；请使用 {@link #findRoleCodes(Long)}
+     */
+    @Deprecated
     @Select("SELECT r.role_code FROM sys_user_role ur " +
             "JOIN sys_role r ON r.role_id = ur.role_id " +
             "WHERE ur.user_id = #{userId} " +
