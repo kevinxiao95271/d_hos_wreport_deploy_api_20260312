@@ -506,11 +506,20 @@ public class DwRecordServiceImpl implements DwRecordService {
 
     @Override
     public void downloadAttachment(Long attachmentId, LoginUser user, HttpServletResponse response) {
+        streamAttachment(attachmentId, user, response, false);
+    }
+
+    @Override
+    public void previewAttachment(Long attachmentId, LoginUser user, HttpServletResponse response) {
+        streamAttachment(attachmentId, user, response, true);
+    }
+
+    private void streamAttachment(Long attachmentId, LoginUser user, HttpServletResponse response, boolean inline) {
         DwAttachment att = attachmentMapper.selectById(attachmentId);
         if (att == null) throw new BusinessException(404, "附件不存在");
         WrRecord record = requireRecord(att.getRecordId());
         if (!user.isAdmin() && !record.getOrgId().equals(user.getOrgId()))
-            throw new BusinessException(403, "无权下载");
+            throw new BusinessException(403, inline ? "无权预览" : "无权下载");
         if (att.getFileUrl() == null || att.getFileUrl().trim().isEmpty())
             throw new BusinessException(404, "附件文件不存在");
 
@@ -519,11 +528,11 @@ public class DwRecordServiceImpl implements DwRecordService {
         fileName = fileName.replace("\"", "");
         try {
             String encoded = URLEncoder.encode(fileName, StandardCharsets.UTF_8.name()).replace("+", "%20");
-            String mime = att.getFileMime() != null && !att.getFileMime().trim().isEmpty()
-                    ? att.getFileMime() : "application/octet-stream";
+            String mime = resolveContentType(att);
             response.setContentType(mime);
+            String dispositionType = inline ? "inline" : "attachment";
             response.setHeader("Content-Disposition",
-                    "attachment; filename=\"" + fileName + "\"; filename*=UTF-8''" + encoded);
+                    dispositionType + "; filename=\"" + fileName + "\"; filename*=UTF-8''" + encoded);
             response.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
             if (att.getFileSize() != null && att.getFileSize() > 0)
                 response.setContentLengthLong(att.getFileSize());
@@ -540,9 +549,28 @@ public class DwRecordServiceImpl implements DwRecordService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("[DW] download attachment failed id={}: {}", attachmentId, e.getMessage(), e);
-            throw new BusinessException(500, "下载失败: " + e.getMessage());
+            log.error("[DW] {} attachment failed id={}: {}", inline ? "preview" : "download", attachmentId, e.getMessage(), e);
+            throw new BusinessException(500, (inline ? "预览" : "下载") + "失败: " + e.getMessage());
         }
+    }
+
+    private String resolveContentType(DwAttachment att) {
+        if (att.getFileMime() != null && !att.getFileMime().trim().isEmpty()) {
+            return att.getFileMime().trim();
+        }
+        String name = att.getFileName() != null ? att.getFileName().toLowerCase() : "";
+        if (name.endsWith(".pdf")) return "application/pdf";
+        if (name.endsWith(".png")) return "image/png";
+        if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+        if (name.endsWith(".gif")) return "image/gif";
+        if (name.endsWith(".webp")) return "image/webp";
+        if (name.endsWith(".bmp")) return "image/bmp";
+        if (name.endsWith(".svg")) return "image/svg+xml";
+        if (name.endsWith(".docx")) {
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        }
+        if (name.endsWith(".doc")) return "application/msword";
+        return "application/octet-stream";
     }
 
     // ─────────────────────────────────────────────────────────────

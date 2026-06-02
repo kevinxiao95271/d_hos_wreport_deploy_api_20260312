@@ -60,6 +60,9 @@ public interface DwRecordService {
     /** 下载附件（Content-Disposition 携带原始文件名） */
     void downloadAttachment(Long attachmentId, LoginUser user, javax.servlet.http.HttpServletResponse response);
 
+    /** 在线预览附件（inline 输出，由后端从 MinIO 代理读取） */
+    void previewAttachment(Long attachmentId, LoginUser user, javax.servlet.http.HttpServletResponse response);
+
     // ── 提交/审核 ─────────────────────────────────────
     void submit(Long recordId, LoginUser user);
     void audit(Long recordId, Integer result, String remark, LoginUser user);

@@ -278,6 +278,12 @@ public class DwRecordController {
         service.downloadAttachment(id, user(), response);
     }
 
+    @Operation(summary = "预览附件（后端代理 MinIO，inline 输出，供前端 img/iframe/docx 预览）")
+    @GetMapping("/attachment/preview/{id}")
+    public void previewAttachment(@PathVariable Long id, javax.servlet.http.HttpServletResponse response) {
+        service.previewAttachment(id, user(), response);
+    }
+
     // ── 工具 ─────────────────────────────────────────────────────
 
     private LoginUser user() {
