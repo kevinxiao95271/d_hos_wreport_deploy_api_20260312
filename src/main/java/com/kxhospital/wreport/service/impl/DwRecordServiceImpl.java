@@ -1129,6 +1129,7 @@ public class DwRecordServiceImpl implements DwRecordService {
         long notStarted = 0, draft = 0, submitted = 0, approved = 0, rejected = 0;
         List<DwAdminOverviewVO.OrgRow> orgRows = new ArrayList<>();
 
+
         for (TaskScopeOrgVO scope : scopeList) {
             DwAdminOverviewVO.OrgRow row = new DwAdminOverviewVO.OrgRow();
             row.setOrgId(scope.getOrgId());

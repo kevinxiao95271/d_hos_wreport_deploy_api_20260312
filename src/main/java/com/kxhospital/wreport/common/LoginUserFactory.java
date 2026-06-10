@@ -15,8 +15,6 @@ public final class LoginUserFactory {
 
     private static final Set<String> ADMIN_ROLE_CODES = new HashSet<>(
             Arrays.asList("deptAdmin", "superAdmin"));
-    private static final Set<String> ORG_FILL_ROLE_CODES = new HashSet<>(
-            Arrays.asList("zkcwfzr", "qcUser"));
 
     private LoginUserFactory() {
     }
@@ -59,7 +57,7 @@ public final class LoginUserFactory {
             }
         }
         for (String code : roleCodes) {
-            if (ORG_FILL_ROLE_CODES.contains(code)) {
+            if (RoleCodes.isOrgFillRole(code)) {
                 return code;
             }
         }

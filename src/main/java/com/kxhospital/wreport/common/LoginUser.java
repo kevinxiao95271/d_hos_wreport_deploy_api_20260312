@@ -21,9 +21,6 @@ public class LoginUser {
 
     private static final Set<String> ADMIN_ROLE_CODES = new HashSet<>(
             Arrays.asList("deptAdmin", "superAdmin"));
-    /** 可填报机构端：质控中心负责人、机构用户 */
-    private static final Set<String> ORG_FILL_ROLE_CODES = new HashSet<>(
-            Arrays.asList("zkcwfzr", "qcUser"));
 
     private Long   userId;
     private String account;
@@ -52,11 +49,11 @@ public class LoginUser {
         return ADMIN_ROLE_CODES.contains(roleCode);
     }
 
-    /** 是否具备机构端填报权限（角色列表包含 zkcwfzr 或 qcUser 即可） */
+    /** 是否具备机构端填报权限（zkcwfzr、jszdzx 或任意 qc 前缀角色） */
     public boolean isOrgUser() {
         if (roleCodes != null && !roleCodes.isEmpty()) {
-            return roleCodes.stream().anyMatch(ORG_FILL_ROLE_CODES::contains);
+            return RoleCodes.hasOrgFillRole(roleCodes);
         }
-        return ORG_FILL_ROLE_CODES.contains(roleCode);
+        return RoleCodes.hasOrgFillRole(roleCode);
     }
 }
